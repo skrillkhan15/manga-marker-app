@@ -260,6 +260,9 @@ class _MyHomePageState extends State<MyHomePage> {
         if (_currentFilter.collection != null && _currentFilter.collection != bookmark.collectionId) {
           matches = false;
         }
+        if (_currentFilter.notesKeyword != null && !bookmark.notes.toLowerCase().contains(_currentFilter.notesKeyword!.toLowerCase())) {
+          matches = false;
+        }
         return matches;
       }).toList();
     }
@@ -1130,6 +1133,7 @@ class _FilterDialogState extends State<FilterDialog> {
   late String? _selectedStatus;
   late String? _selectedTag;
   late String? _selectedCollection;
+  late String? _notesKeyword; // New state variable for notes keyword
 
   @override
   void initState() {
@@ -1137,6 +1141,7 @@ class _FilterDialogState extends State<FilterDialog> {
     _selectedStatus = widget.currentFilter.status;
     _selectedTag = widget.currentFilter.tag;
     _selectedCollection = widget.currentFilter.collection;
+    _notesKeyword = widget.currentFilter.notesKeyword; // Initialize from current filter
   }
 
   @override
@@ -1176,6 +1181,13 @@ class _FilterDialogState extends State<FilterDialog> {
               _selectedCollection = value.isEmpty ? null : value;
             },
           ),
+          TextFormField(
+            initialValue: _notesKeyword,
+            decoration: const InputDecoration(labelText: 'Search Notes'),
+            onChanged: (value) {
+              _notesKeyword = value.isEmpty ? null : value;
+            },
+          ),
         ],
       ),
       actions: [
@@ -1191,6 +1203,7 @@ class _FilterDialogState extends State<FilterDialog> {
                 status: _selectedStatus,
                 tag: _selectedTag,
                 collection: _selectedCollection,
+                notesKeyword: _notesKeyword, // Pass the new notesKeyword
               ),
             );
           },

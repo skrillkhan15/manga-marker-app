@@ -195,16 +195,18 @@ class BookmarkFilter {
   String? status;
   String? tag;
   String? collection;
+  String? notesKeyword; // New field for searching notes
 
-  BookmarkFilter({this.status, this.tag, this.collection});
+  BookmarkFilter({this.status, this.tag, this.collection, this.notesKeyword});
 
-  bool get isActive => status != null || tag != null || collection != null;
+  bool get isActive => status != null || tag != null || collection != null || notesKeyword != null;
 
-  BookmarkFilter copyWith({String? status, String? tag, String? collection}) {
+  BookmarkFilter copyWith({String? status, String? tag, String? collection, String? notesKeyword}) {
     return BookmarkFilter(
       status: status ?? this.status,
       tag: tag ?? this.tag,
       collection: collection ?? this.collection,
+      notesKeyword: notesKeyword ?? this.notesKeyword,
     );
   }
 
@@ -212,12 +214,14 @@ class BookmarkFilter {
     'status': status,
     'tag': tag,
     'collection': collection,
+    'notesKeyword': notesKeyword,
   };
 
   factory BookmarkFilter.fromMap(Map<String, dynamic> map) => BookmarkFilter(
     status: map['status'],
     tag: map['tag'],
     collection: map['collection'],
+    notesKeyword: map['notesKeyword'],
   );
 
   @override
