@@ -285,4 +285,59 @@ class DatabaseHelper {
     goals.removeWhere((g) => g.id == goalId);
     await saveReadingGoals(goals);
   }
+
+  static const String _backupFrequencyKey = 'backupFrequency'; // in days
+  static const String _lastBackupTimeKey = 'lastBackupTime';
+
+  Future<void> saveBackupFrequency(int days) async {
+    final prefs = await _prefs;
+    await prefs.setInt(_backupFrequencyKey, days);
+  }
+
+  Future<int> getBackupFrequency() async {
+    final prefs = await _prefs;
+    return prefs.getInt(_backupFrequencyKey) ?? 0; // 0 means no scheduled backup
+  }
+
+  Future<void> saveLastBackupTime(DateTime time) async {
+    final prefs = await _prefs;
+    await prefs.setString(_lastBackupTimeKey, time.toIso8601String());
+  }
+
+  Future<DateTime?> getLastBackupTime() async {
+    final prefs = await _prefs;
+    final timeString = prefs.getString(_lastBackupTimeKey);
+    if (timeString != null) {
+      return DateTime.tryParse(timeString);
+    }
+    return null;
+  }
+}
+
+  static const String _backupFrequencyKey = 'backupFrequency'; // in days
+  static const String _lastBackupTimeKey = 'lastBackupTime';
+
+  Future<void> saveBackupFrequency(int days) async {
+    final prefs = await _prefs;
+    await prefs.setInt(_backupFrequencyKey, days);
+  }
+
+  Future<int> getBackupFrequency() async {
+    final prefs = await _prefs;
+    return prefs.getInt(_backupFrequencyKey) ?? 0; // 0 means no scheduled backup
+  }
+
+  Future<void> saveLastBackupTime(DateTime time) async {
+    final prefs = await _prefs;
+    await prefs.setString(_lastBackupTimeKey, time.toIso8601String());
+  }
+
+  Future<DateTime?> getLastBackupTime() async {
+    final prefs = await _prefs;
+    final timeString = prefs.getString(_lastBackupTimeKey);
+    if (timeString != null) {
+      return DateTime.tryParse(timeString);
+    }
+    return null;
+  }
 }

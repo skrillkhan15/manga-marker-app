@@ -680,6 +680,18 @@ class _MyHomePageState extends State<MyHomePage> {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.settings_backup_restore),
+              title: const Text('Backup Settings'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const BackupSettingsScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.security_outlined),
               title: const Text('Set Security Question'),
               onTap: () async {
