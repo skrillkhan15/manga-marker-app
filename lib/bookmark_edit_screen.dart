@@ -143,6 +143,24 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
           'timestamp': DateTime.now().toIso8601String(),
           'duration': _readingDuration, // Include duration
         });
+
+        // Update reading goals
+        final goals = await DatabaseHelper().getReadingGoals();
+        final chaptersRead = _currentChapter - widget.bookmark!.currentChapter;
+        final minutesRead = _readingDuration;
+
+        for (var goal in goals) {
+          if (DateTime.now().isAfter(goal.startDate) && DateTime.now().isBefore(goal.endDate)) {
+            if (goal.type == 'Chapters') {
+              goal.currentValue += chaptersRead;
+            } else if (goal.type == 'Minutes') {
+              goal.currentValue += minutesRead;
+            } else if (goal.type == 'Manga' && newBookmark.status == 'Completed' && widget.bookmark?.status != 'Completed') {
+              goal.currentValue += 1;
+            }
+            await DatabaseHelper().updateReadingGoal(goal);
+          }
+        }
       }
 
       Navigator.of(context).pop(newBookmark);
