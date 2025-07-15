@@ -14,6 +14,7 @@ class Bookmark {
   int rating;
   String mood;
   String collectionId;
+  String? parentId; // New field for nested collections
   DateTime lastUpdated;
   List<Map<String, dynamic>> history;
 
@@ -30,6 +31,7 @@ class Bookmark {
     this.rating = 0,
     this.mood = '',
     this.collectionId = '',
+    this.parentId, // Initialize new field
     required this.lastUpdated,
     this.history = const [],
   });
@@ -48,6 +50,7 @@ class Bookmark {
       'rating': rating,
       'mood': mood,
       'collectionId': collectionId,
+      'parentId': parentId, // Include in map
       'lastUpdated': lastUpdated.toIso8601String(),
       'history': history,
     };
@@ -67,6 +70,7 @@ class Bookmark {
       rating: map['rating'] ?? 0,
       mood: map['mood'] ?? '',
       collectionId: map['collectionId'] ?? '',
+      parentId: map['parentId'], // Retrieve from map
       lastUpdated:
           DateTime.tryParse(map['lastUpdated'] ?? '') ?? DateTime.now(),
       history: List<Map<String, dynamic>>.from(map['history'] ?? []),

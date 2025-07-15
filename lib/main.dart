@@ -73,6 +73,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         'filterStatus': homePageState._currentFilter.status,
         'filterTag': homePageState._currentFilter.tag,
         'filterCollection': homePageState._currentFilter.collection,
+        'currentParentId': homePageState._currentParentId,
       });
     }
   }
@@ -200,6 +201,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTopButton = false;
   bool _devMode = false;
+  String? _currentParentId; // New state variable to track current parent collection
 
   @override
   void initState() {
@@ -225,6 +227,7 @@ class _MyHomePageState extends State<MyHomePage> {
           tag: sessionData['filterTag'],
           collection: sessionData['filterCollection'],
         );
+        _currentParentId = sessionData['currentParentId']; // Load current parent ID
       });
     }
   }
@@ -242,6 +245,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> _loadBookmarks() async {
     List<Bookmark> loadedBookmarks = await dbHelper.getBookmarks();
+    // Filter by parentId first
+    loadedBookmarks = loadedBookmarks.where((bookmark) => bookmark.parentId == _currentParentId).toList();
+
     if (_currentFilter.isActive) {
       loadedBookmarks = loadedBookmarks.where((bookmark) {
         bool matches = true;
@@ -286,210 +292,28 @@ class _MyHomePageState extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_isBulkEditing ? '${_selectedBookmarks.length} selected' : widget.title),
-        actions: [
-          if (_isBulkEditing)
-            IconButton(
-              icon: const Icon(Icons.delete_forever),
-              onPressed: () {
-                setState(() {
-                  bookmarks.removeWhere((bookmark) => _selectedBookmarks.contains(bookmark.id));
-                  dbHelper.saveBookmarks(bookmarks);
-                  _selectedBookmarks.clear();
-                  _isBulkEditing = false;
-                });
-                HapticFeedback.heavyImpact();
-              },
-            ),
-          IconButton(
-            icon: const Icon(Icons.shuffle),
-            onPressed: () async {
-              if (bookmarks.isNotEmpty) {
-                final randomBookmark = (bookmarks..shuffle()).first;
-                final updatedBookmark = await Navigator.of(context).push<Bookmark>(
-                  MaterialPageRoute(
-                    builder: (context) => BookmarkEditScreen(bookmark: randomBookmark),
-                  ),
-                );
-                if (updatedBookmark != null) {
-                  dbHelper.updateBookmark(updatedBookmark);
-                  _loadBookmarks();
-                }
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.flag),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ReadingGoalsScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(_isGridView ? Icons.view_list : Icons.grid_on),
-            onPressed: () {
-              setState(() {
-                _isGridView = !_isGridView;
-              });
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () async {
-              final selectedFilter = await showDialog<BookmarkFilter>(
-                context: context,
-                builder: (context) => FilterDialog(currentFilter: _currentFilter),
-              );
-              if (selectedFilter != null) {
-                setState(() {
-                  _currentFilter = selectedFilter;
-                });
-                _loadBookmarks();
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.save_alt),
-            onPressed: () async {
-              String? presetNameInput;
-              final presetName = await showDialog<String>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Save View Preset'),
-                  content: TextField(
-                    decoration: const InputDecoration(labelText: 'Preset Name'),
-                    onChanged: (value) => presetNameInput = value,
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context, presetNameInput),
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
-              );
-              if (presetName != null && presetName.isNotEmpty) {
-                final newPreset = ViewPreset(
-                  name: presetName,
-                  isGridView: _isGridView,
-                  filter: _currentFilter,
-                );
-                final presets = await dbHelper.getViewPresets();
-                presets.add(newPreset);
-                await dbHelper.saveViewPresets(presets);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Preset ${presetName} saved!')),
-                );
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.folder_open),
-            onPressed: () async {
-              final presets = await dbHelper.getViewPresets();
-              final selectedPreset = await showDialog<ViewPreset>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Load View Preset'),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: presets.length,
-                      itemBuilder: (context, index) {
-                        final preset = presets[index];
-                        return ListTile(
-                          title: Text(preset.name),
-                          subtitle: Text(preset.filter.toString()),
-                          onTap: () => Navigator.pop(context, preset),
-                        );
-                      },
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                  ],
-                ),
-              );
-              if (selectedPreset != null) {
-                setState(() {
-                  _isGridView = selectedPreset.isGridView;
-                  _currentFilter = selectedPreset.filter;
-                });
-                _loadBookmarks();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Preset ${selectedPreset.name} loaded!')),
-                );
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.format_size),
-            onPressed: () async {
-              await showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Adjust Display Settings'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('Font Size: ${_fontSize.toStringAsFixed(1)}'),
-                      Slider(
-                        value: _fontSize,
-                        min: 12.0,
-                        max: 24.0,
-                        divisions: 12,
-                        onChanged: (value) {
-                          setState(() {
-                            _fontSize = value;
-                          });
-                        },
-                      ),
-                      Text('Item Spacing: ${_itemSpacing.toStringAsFixed(1)}'),
-                      Slider(
-                        value: _itemSpacing,
-                        min: 0.0,
-                        max: 20.0,
-                        divisions: 20,
-                        onChanged: (value) {
-                          setState(() {
-                            _itemSpacing = value;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Close'),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          Consumer<ThemeManager>(
-            builder: (context, themeManager, child) {
-              return IconButton(
-                icon: Icon(themeManager.themeMode == ThemeMode.dark ? Icons.light_mode : Icons.dark_mode),
+        leading: _currentParentId != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
                 onPressed: () {
-                  themeManager.toggleTheme(themeManager.themeMode != ThemeMode.dark);
+                  setState(() {
+                    _currentParentId = null; // Go back to top level
+                  });
+                  _loadBookmarks();
                 },
-              );
-            },
-          ),
-        ],
-      ),
+              )
+            : null,
+        leading: _currentParentId != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  setState(() {
+                    _currentParentId = null; // Go back to top level
+                  });
+                  _loadBookmarks();
+                },
+              )
+            : null,
       body: bookmarks.isEmpty
           ? const Center(
               child: Text(

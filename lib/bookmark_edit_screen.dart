@@ -29,6 +29,8 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
   late int _rating;
   late String _mood;
   late String _collectionId;
+  String? _parentCollectionId; // New state variable for parent collection
+  List<Bookmark> _possibleParentCollections = []; // To store potential parent bookmarks
 
   @override
   void initState() {
@@ -44,6 +46,18 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     _rating = widget.bookmark?.rating ?? 0;
     _mood = widget.bookmark?.mood ?? '';
     _collectionId = widget.bookmark?.collectionId ?? '';
+    _parentCollectionId = widget.bookmark?.parentId; // Initialize from existing bookmark
+
+    _loadPossibleParentCollections();
+  }
+
+  Future<void> _loadPossibleParentCollections() async {
+    final dbHelper = DatabaseHelper();
+    final allBookmarks = await dbHelper.getBookmarks();
+    setState(() {
+      // Filter out the current bookmark itself to prevent self-nesting
+      _possibleParentCollections = allBookmarks.where((b) => b.id != widget.bookmark?.id).toList();
+    });
   }
 
   Future<void> _pickImage() async {
@@ -74,6 +88,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
         rating: _rating,
         mood: _mood,
         collectionId: _collectionId,
+        parentId: _parentCollectionId, // Save the parentId
         lastUpdated: DateTime.now(),
         history: widget.bookmark?.history ?? [],
       );
@@ -105,6 +120,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
         _rating = previousState['rating'] ?? 0;
         _mood = previousState['mood'] ?? '';
         _collectionId = previousState['collectionId'] ?? '';
+        _parentCollectionId = previousState['parentId']; // Restore parentId
       });
     }
   }
@@ -124,6 +140,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
       rating: _rating,
       mood: _mood,
       collectionId: _collectionId,
+      parentId: _parentCollectionId, // Include parentId in QR code data
       lastUpdated: DateTime.now(),
       history: widget.bookmark?.history ?? [],
     );
@@ -254,6 +271,28 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
                   labelText: 'Collection / Folder',
                 ),
                 onSaved: (value) => _collectionId = value!,
+              ),
+              DropdownButtonFormField<String>(
+                value: _parentCollectionId,
+                decoration: const InputDecoration(labelText: 'Parent Collection'),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('None (Top Level)'),
+                  ),
+                  ..._possibleParentCollections.map((bookmark) {
+                    return DropdownMenuItem<String>(
+                      value: bookmark.id,
+                      child: Text(bookmark.title),
+                    );
+                  }).toList(),
+                ],
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _parentCollectionId = newValue;
+                  });
+                },
+                onSaved: (value) => _parentCollectionId = value,
               ),
               DropdownButtonFormField<String>(
                 value: _status,
