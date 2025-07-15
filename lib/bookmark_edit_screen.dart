@@ -104,6 +104,22 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
 
   Future<void> _showQrCode() async {
     final dbHelper = DatabaseHelper();
+    final newBookmark = Bookmark(
+      id: widget.bookmark?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      title: _title,
+      url: _url,
+      coverImage: _coverImage,
+      status: _status,
+      tags: _tags,
+      currentChapter: _currentChapter,
+      totalChapters: _totalChapters,
+      notes: _notes,
+      rating: _rating,
+      mood: _mood,
+      collectionId: _collectionId,
+      lastUpdated: DateTime.now(),
+      history: widget.bookmark?.history ?? [],
+    );
     final qrData = await dbHelper.exportBookmarkAsQrCode(jsonEncode(newBookmark.toJson()));
     if (qrData != null) {
       showDialog(
