@@ -188,6 +188,15 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
                     ? 'Please enter a URL'
                     : null,
                 onSaved: (value) => _url = value!,
+                onChanged: (value) {
+                  _url = value;
+                  final detectedChapter = DatabaseHelper().extractChapterNumberFromUrl(value);
+                  if (detectedChapter != null) {
+                    setState(() {
+                      _currentChapter = detectedChapter;
+                    });
+                  }
+                },
               ),
               Row(
                 children: [

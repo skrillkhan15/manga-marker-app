@@ -206,4 +206,13 @@ class DatabaseHelper {
       await saveBookmarks(bookmarks);
     }
   }
+
+  int? extractChapterNumberFromUrl(String url) {
+    final regex = RegExp(r'(?:chapter|ch|c|vol|v)[-_]?(\d+(?:\.\d+)?)', caseSensitive: false);
+    final match = regex.firstMatch(url);
+    if (match != null && match.group(1) != null) {
+      return int.tryParse(match.group(1)!);
+    }
+    return null;
+  }
 }
