@@ -82,13 +82,14 @@ class Bookmark {
 class Tag {
   String id;
   String name;
+  int? color;
 
-  Tag({required this.id, required this.name});
+  Tag({required this.id, required this.name, this.color});
 
-  Map<String, dynamic> toMap() => {'id': id, 'name': name};
+  Map<String, dynamic> toMap() => {'id': id, 'name': name, 'color': color};
 
   factory Tag.fromMap(Map<String, dynamic> map) =>
-      Tag(id: map['id'] ?? '', name: map['name'] ?? '');
+      Tag(id: map['id'] ?? '', name: map['name'] ?? '', color: map['color']);
 
   String toJson() => json.encode(toMap());
   factory Tag.fromJson(String source) => Tag.fromMap(json.decode(source));

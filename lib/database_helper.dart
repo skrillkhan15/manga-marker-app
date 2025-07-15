@@ -215,4 +215,39 @@ class DatabaseHelper {
     }
     return null;
   }
+
+  static const String _tagsKey = 'tags';
+
+  Future<void> saveTags(List<Tag> tags) async {
+    final prefs = await _prefs;
+    final tagsJson = tags.map((t) => jsonEncode(t.toMap())).toList();
+    await prefs.setStringList(_tagsKey, tagsJson);
+  }
+
+  Future<List<Tag>> getTags() async {
+    final prefs = await _prefs;
+    final tagsJson = prefs.getStringList(_tagsKey) ?? [];
+    return tagsJson.map((json) => Tag.fromMap(jsonDecode(json))).toList();
+  }
+
+  Future<void> addTag(Tag tag) async {
+    final tags = await getTags();
+    tags.add(tag);
+    await saveTags(tags);
+  }
+
+  Future<void> updateTag(Tag tag) async {
+    final tags = await getTags();
+    final index = tags.indexWhere((t) => t.id == tag.id);
+    if (index != -1) {
+      tags[index] = tag;
+      await saveTags(tags);
+    }
+  }
+
+  Future<void> deleteTag(String tagId) async {
+    final tags = await getTags();
+    tags.removeWhere((t) => t.id == tagId);
+    await saveTags(tags);
+  }
 }
