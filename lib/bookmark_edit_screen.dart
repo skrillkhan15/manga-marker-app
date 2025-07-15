@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async'; // Import for Timer
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -33,6 +34,11 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
   String? _parentCollectionId; // New state variable for parent collection
   List<Bookmark> _possibleParentCollections = []; // To store potential parent bookmarks
 
+  // Timer variables
+  Timer? _timer;
+  int _elapsedSeconds = 0;
+  bool _isTimerRunning = false;
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +57,41 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     _parentCollectionId = widget.bookmark?.parentId; // Initialize from existing bookmark
 
     _loadPossibleParentCollections();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel(); // Cancel the timer when the widget is disposed
+    super.dispose();
+  }
+
+  void _startTimer() {
+    if (!_isTimerRunning) {
+      _isTimerRunning = true;
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        setState(() {
+          _elapsedSeconds++;
+        });
+      });
+    }
+  }
+
+  void _stopTimer() {
+    if (_isTimerRunning) {
+      _timer?.cancel();
+      setState(() {
+        _isTimerRunning = false;
+        _readingDuration = _elapsedSeconds ~/ 60; // Convert to minutes
+      });
+    }
+  }
+
+  void _resetTimer() {
+    _stopTimer();
+    setState(() {
+      _elapsedSeconds = 0;
+      _readingDuration = 0;
+    });
   }
 
   Future<void> _loadPossibleParentCollections() async {
@@ -283,6 +324,23 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
                 keyboardType: TextInputType.number,
                 onSaved: (value) => _readingDuration = int.tryParse(value ?? '0') ?? 0,
               ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: _isTimerRunning ? _stopTimer : _startTimer,
+                    child: Text(_isTimerRunning ? 'Stop Timer' : 'Start Timer'),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _resetTimer,
+                    child: const Text('Reset Timer'),
+                  ),
+                ],
+              ),
+              Text('Elapsed Time: ${_elapsedSeconds ~/ 60}m ${_elapsedSeconds % 60}s'),
+              const SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 value: _parentCollectionId,
                 decoration: const InputDecoration(labelText: 'Parent Collection'),
