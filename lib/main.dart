@@ -20,6 +20,7 @@ import 'package:manga_marker/auth_manager.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:manga_marker/statistics_screen.dart';
 import 'package:manga_marker/theme_editor_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   runApp(
@@ -486,6 +487,39 @@ class _MyHomePageState extends State<MyHomePage> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove),
+                              onPressed: () {
+                                if (bookmark.currentChapter > 0) {
+                                  bookmark.currentChapter--;
+                                  dbHelper.updateBookmark(bookmark);
+                                  _loadBookmarks();
+                                }
+                              },
+                            ),
+                            Text('${bookmark.currentChapter}'),
+                            IconButton(
+                              icon: const Icon(Icons.add),
+                              onPressed: () {
+                                bookmark.currentChapter++;
+                                dbHelper.updateBookmark(bookmark);
+                                _loadBookmarks();
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.launch),
+                              onPressed: () async {
+                                if (bookmark.url.isNotEmpty) {
+                                  if (await canLaunch(bookmark.url)) {
+                                    await launch(bookmark.url);
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Could not launch ${bookmark.url}')),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
                             IconButton(
                               icon: const Icon(Icons.copy),
                               onPressed: () {
