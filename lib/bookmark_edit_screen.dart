@@ -62,9 +62,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       final newBookmark = Bookmark(
-        id:
-            widget.bookmark?.id ??
-            DateTime.now().millisecondsSinceEpoch.toString(),
+        id: widget.bookmark?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         title: _title,
         url: _url,
         coverImage: _coverImage,
@@ -79,6 +77,15 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
         lastUpdated: DateTime.now(),
         history: widget.bookmark?.history ?? [],
       );
+
+      // Add to history if currentChapter has increased
+      if (widget.bookmark != null && _currentChapter > widget.bookmark!.currentChapter) {
+        newBookmark.history.add({
+          'chapter': _currentChapter,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+      }
+
       Navigator.of(context).pop(newBookmark);
     }
   }
