@@ -40,7 +40,7 @@ dependencies:
   qr_flutter: ^4.1.0
   table_calendar: ^3.0.9
   mobile_scanner: ^4.0.0
-  flutter_haptic: 0.0.3
+  haptic_feedback: ^0.5.1+1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
