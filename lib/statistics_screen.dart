@@ -16,6 +16,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Map<String, int> _chaptersReadPerMonth = {};
   double _averageReadingTime = 0.0;
   String _mostActiveReadingDay = 'N/A';
+  Map<String, int> _tagFrequency = {};
+  Map<String, double> _tagAverageRating = {};
+  Map<String, double> _statusPercentages = {};
 
   @override
   void initState() {
@@ -29,6 +32,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     _chaptersReadPerMonth = _calculateChaptersReadPerPeriod(bookmarks, Period.month);
     _calculateAverageReadingTime(bookmarks);
     _calculateMostActiveReadingDay(bookmarks);
+    _calculateTagStatistics(bookmarks);
+    _calculateStatusPercentages(bookmarks);
     setState(() {});
   }
 
@@ -126,6 +131,37 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
   }
 
+  void _calculateTagStatistics(List<Bookmark> bookmarks) {
+    final Map<String, int> tagCounts = {};
+    final Map<String, int> tagRatingSums = {};
+
+    for (final bookmark in bookmarks) {
+      for (final tag in bookmark.tags) {
+        tagCounts.update(tag, (value) => value + 1, ifAbsent: () => 1);
+        tagRatingSums.update(tag, (value) => value + bookmark.rating, ifAbsent: () => bookmark.rating);
+      }
+    }
+
+    _tagFrequency = tagCounts;
+    _tagAverageRating = tagRatingSums.map((key, value) => MapEntry(key, value / tagCounts[key]!));
+  }
+
+  void _calculateStatusPercentages(List<Bookmark> bookmarks) {
+    final Map<String, int> statusCounts = {};
+    int totalBookmarks = bookmarks.length;
+
+    if (totalBookmarks == 0) {
+      _statusPercentages = {};
+      return;
+    }
+
+    for (final bookmark in bookmarks) {
+      statusCounts.update(bookmark.status, (value) => value + 1, ifAbsent: () => 1);
+    }
+
+    _statusPercentages = statusCounts.map((key, value) => MapEntry(key, (value / totalBookmarks) * 100));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -191,6 +227,47 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       return ListTile(
                         title: Text('Month of $key'),
                         trailing: Text('$value chapters'),
+                      );
+                    },
+                  ),
+            const SizedBox(height: 20),
+            Text(
+              'Tag Frequency:',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            _tagFrequency.isEmpty
+                ? const Text('No tag data available.')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _tagFrequency.keys.length,
+                    itemBuilder: (context, index) {
+                      final tag = _tagFrequency.keys.elementAt(index);
+                      final count = _tagFrequency[tag];
+                      final avgRating = _tagAverageRating[tag]?.toStringAsFixed(2) ?? 'N/A';
+                      return ListTile(
+                        title: Text('$tag (Count: $count)'),
+                        trailing: Text('Avg Rating: $avgRating'),
+                      );
+                    },
+                  ),
+            const SizedBox(height: 20),
+            Text(
+              'Bookmark Status Distribution:',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            _statusPercentages.isEmpty
+                ? const Text('No status data available.')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _statusPercentages.keys.length,
+                    itemBuilder: (context, index) {
+                      final status = _statusPercentages.keys.elementAt(index);
+                      final percentage = _statusPercentages[status]?.toStringAsFixed(2) ?? '0.00';
+                      return ListTile(
+                        title: Text('$status'),
+                        trailing: Text('$percentage%'),
                       );
                     },
                   ),
