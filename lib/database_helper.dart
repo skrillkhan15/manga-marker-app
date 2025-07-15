@@ -169,6 +169,11 @@ class DatabaseHelper {
     }
   }
 
+  Future<String> exportBookmarkAsQrCode(String data) async {
+    // Replace with actual logic later
+    return base64Encode(utf8.encode(data));
+  }
+
   Future<Bookmark?> importBookmarkFromQrCode(String qrData) async {
     try {
       final data = jsonDecode(qrData);
