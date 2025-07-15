@@ -250,4 +250,39 @@ class DatabaseHelper {
     tags.removeWhere((t) => t.id == tagId);
     await saveTags(tags);
   }
+
+  static const String _readingGoalsKey = 'readingGoals';
+
+  Future<void> saveReadingGoals(List<ReadingGoal> goals) async {
+    final prefs = await _prefs;
+    final goalsJson = goals.map((g) => jsonEncode(g.toMap())).toList();
+    await prefs.setStringList(_readingGoalsKey, goalsJson);
+  }
+
+  Future<List<ReadingGoal>> getReadingGoals() async {
+    final prefs = await _prefs;
+    final goalsJson = prefs.getStringList(_readingGoalsKey) ?? [];
+    return goalsJson.map((json) => ReadingGoal.fromMap(jsonDecode(json))).toList();
+  }
+
+  Future<void> addReadingGoal(ReadingGoal goal) async {
+    final goals = await getReadingGoals();
+    goals.add(goal);
+    await saveReadingGoals(goals);
+  }
+
+  Future<void> updateReadingGoal(ReadingGoal goal) async {
+    final goals = await getReadingGoals();
+    final index = goals.indexWhere((g) => g.id == goal.id);
+    if (index != -1) {
+      goals[index] = goal;
+      await saveReadingGoals(goals);
+    }
+  }
+
+  Future<void> deleteReadingGoal(String goalId) async {
+    final goals = await getReadingGoals();
+    goals.removeWhere((g) => g.id == goalId);
+    await saveReadingGoals(goals);
+  }
 }
