@@ -29,6 +29,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
   late int _rating;
   late String _mood;
   late String _collectionId;
+  late int _readingDuration; // New state variable for reading duration
   String? _parentCollectionId; // New state variable for parent collection
   List<Bookmark> _possibleParentCollections = []; // To store potential parent bookmarks
 
@@ -46,6 +47,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     _rating = widget.bookmark?.rating ?? 0;
     _mood = widget.bookmark?.mood ?? '';
     _collectionId = widget.bookmark?.collectionId ?? '';
+    _readingDuration = 0; // Initialize reading duration
     _parentCollectionId = widget.bookmark?.parentId; // Initialize from existing bookmark
 
     _loadPossibleParentCollections();
@@ -98,6 +100,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
         newBookmark.history.add({
           'chapter': _currentChapter,
           'timestamp': DateTime.now().toIso8601String(),
+          'duration': _readingDuration, // Include duration
         });
       }
 
@@ -271,6 +274,14 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
                   labelText: 'Collection / Folder',
                 ),
                 onSaved: (value) => _collectionId = value!,
+              ),
+              TextFormField(
+                initialValue: _readingDuration.toString(),
+                decoration: const InputDecoration(
+                  labelText: 'Reading Duration (minutes)',
+                ),
+                keyboardType: TextInputType.number,
+                onSaved: (value) => _readingDuration = int.tryParse(value ?? '0') ?? 0,
               ),
               DropdownButtonFormField<String>(
                 value: _parentCollectionId,
