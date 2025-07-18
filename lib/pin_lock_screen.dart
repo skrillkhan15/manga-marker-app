@@ -91,10 +91,12 @@ class _PinLockScreenState extends State<PinLockScreen> {
                   maxLength: 4,
                   decoration: const InputDecoration(labelText: 'PIN'),
                   validator: (value) {
-                    if (value == null || value.length != 4)
+                    if (value == null || value.length != 4) {
                       return 'Enter 4 digits';
-                    if (!RegExp(r'^\d{4}').hasMatch(value))
+                    }
+                    if (!RegExp(r'^\d{4}').hasMatch(value)) {
                       return 'Digits only';
+                    }
                     return null;
                   },
                   onFieldSubmitted: (_) => _submit(),

@@ -28,8 +28,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Future<void> _loadStatistics() async {
     final bookmarks = await _dbHelper.getBookmarks();
-    _chaptersReadPerWeek = _calculateChaptersReadPerPeriod(bookmarks, Period.week);
-    _chaptersReadPerMonth = _calculateChaptersReadPerPeriod(bookmarks, Period.month);
+    _chaptersReadPerWeek = _calculateChaptersReadPerPeriod(
+      bookmarks,
+      Period.week,
+    );
+    _chaptersReadPerMonth = _calculateChaptersReadPerPeriod(
+      bookmarks,
+      Period.month,
+    );
     _calculateAverageReadingTime(bookmarks);
     _calculateMostActiveReadingDay(bookmarks);
     _calculateTagStatistics(bookmarks);
@@ -37,7 +43,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     setState(() {});
   }
 
-  Map<String, int> _calculateChaptersReadPerPeriod(List<Bookmark> bookmarks, Period period) {
+  Map<String, int> _calculateChaptersReadPerPeriod(
+    List<Bookmark> bookmarks,
+    Period period,
+  ) {
     final Map<String, int> chaptersRead = {};
 
     for (final bookmark in bookmarks) {
@@ -48,13 +57,19 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         String periodKey;
         if (period == Period.week) {
           // Get the start of the week (Monday)
-          final startOfWeek = timestamp.subtract(Duration(days: timestamp.weekday - 1));
+          final startOfWeek = timestamp.subtract(
+            Duration(days: timestamp.weekday - 1),
+          );
           periodKey = DateFormat('yyyy-MM-dd').format(startOfWeek);
         } else {
           periodKey = DateFormat('yyyy-MM').format(timestamp);
         }
 
-        chaptersRead.update(periodKey, (value) => value + chapter, ifAbsent: () => chapter);
+        chaptersRead.update(
+          periodKey,
+          (value) => value + chapter,
+          ifAbsent: () => chapter,
+        );
       }
     }
     return chaptersRead;
@@ -87,7 +102,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       for (final entry in bookmark.history) {
         final timestamp = DateTime.parse(entry['timestamp']);
         final dayOfWeek = timestamp.weekday; // 1 (Monday) through 7 (Sunday)
-        dayOfWeekCounts.update(dayOfWeek, (value) => value + 1, ifAbsent: () => 1);
+        dayOfWeekCounts.update(
+          dayOfWeek,
+          (value) => value + 1,
+          ifAbsent: () => 1,
+        );
       }
     }
 
@@ -138,12 +157,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     for (final bookmark in bookmarks) {
       for (final tag in bookmark.tags) {
         tagCounts.update(tag, (value) => value + 1, ifAbsent: () => 1);
-        tagRatingSums.update(tag, (value) => value + bookmark.rating, ifAbsent: () => bookmark.rating);
+        tagRatingSums.update(
+          tag,
+          (value) => value + bookmark.rating,
+          ifAbsent: () => bookmark.rating,
+        );
       }
     }
 
     _tagFrequency = tagCounts;
-    _tagAverageRating = tagRatingSums.map((key, value) => MapEntry(key, value / tagCounts[key]!));
+    _tagAverageRating = tagRatingSums.map(
+      (key, value) => MapEntry(key, value / tagCounts[key]!),
+    );
   }
 
   void _calculateStatusPercentages(List<Bookmark> bookmarks) {
@@ -156,18 +181,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     }
 
     for (final bookmark in bookmarks) {
-      statusCounts.update(bookmark.status, (value) => value + 1, ifAbsent: () => 1);
+      statusCounts.update(
+        bookmark.status,
+        (value) => value + 1,
+        ifAbsent: () => 1,
+      );
     }
 
-    _statusPercentages = statusCounts.map((key, value) => MapEntry(key, (value / totalBookmarks) * 100));
+    _statusPercentages = statusCounts.map(
+      (key, value) => MapEntry(key, (value / totalBookmarks) * 100),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reading Statistics'),
-      ),
+      appBar: AppBar(title: const Text('Reading Statistics')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -244,7 +273,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     itemBuilder: (context, index) {
                       final tag = _tagFrequency.keys.elementAt(index);
                       final count = _tagFrequency[tag];
-                      final avgRating = _tagAverageRating[tag]?.toStringAsFixed(2) ?? 'N/A';
+                      final avgRating =
+                          _tagAverageRating[tag]?.toStringAsFixed(2) ?? 'N/A';
                       return ListTile(
                         title: Text('$tag (Count: $count)'),
                         trailing: Text('Avg Rating: $avgRating'),
@@ -264,9 +294,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     itemCount: _statusPercentages.keys.length,
                     itemBuilder: (context, index) {
                       final status = _statusPercentages.keys.elementAt(index);
-                      final percentage = _statusPercentages[status]?.toStringAsFixed(2) ?? '0.00';
+                      final percentage =
+                          _statusPercentages[status]?.toStringAsFixed(2) ??
+                          '0.00';
                       return ListTile(
-                        title: Text('$status'),
+                        title: Text(status),
                         trailing: Text('$percentage%'),
                       );
                     },

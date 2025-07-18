@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'models.dart';
 
 class ExportService {
   /// Export bookmarks as JSON with enhanced formatting
-  static Future<bool> exportAsJson(List<Bookmark> bookmarks, List<Tag> tags) async {
+  static Future<bool> exportAsJson(
+    List<Bookmark> bookmarks,
+    List<Tag> tags,
+  ) async {
     try {
       final exportData = {
         'metadata': {
@@ -24,7 +26,8 @@ class ExportService {
 
       final path = await FilePicker.platform.saveFile(
         dialogTitle: 'Export Bookmarks as JSON',
-        fileName: 'manga_marker_export_${DateTime.now().millisecondsSinceEpoch}.json',
+        fileName:
+            'manga_marker_export_${DateTime.now().millisecondsSinceEpoch}.json',
         allowedExtensions: ['json'],
         type: FileType.custom,
       );
@@ -40,14 +43,18 @@ class ExportService {
   }
 
   /// Export bookmarks as HTML with enhanced styling
-  static Future<bool> exportAsHtml(List<Bookmark> bookmarks, List<Tag> tags) async {
+  static Future<bool> exportAsHtml(
+    List<Bookmark> bookmarks,
+    List<Tag> tags,
+  ) async {
     try {
       final statistics = _generateStatistics(bookmarks);
       final htmlContent = _generateHtmlContent(bookmarks, tags, statistics);
 
       final path = await FilePicker.platform.saveFile(
         dialogTitle: 'Export Bookmarks as HTML',
-        fileName: 'manga_marker_export_${DateTime.now().millisecondsSinceEpoch}.html',
+        fileName:
+            'manga_marker_export_${DateTime.now().millisecondsSinceEpoch}.html',
         allowedExtensions: ['html'],
         type: FileType.custom,
       );
@@ -89,26 +96,30 @@ class ExportService {
   /// Generate statistics from bookmarks
   static Map<String, dynamic> _generateStatistics(List<Bookmark> bookmarks) {
     final stats = <String, dynamic>{};
-    
+
     stats['totalBookmarks'] = bookmarks.length;
-    stats['totalChaptersRead'] = bookmarks.fold(0, (sum, b) => sum + b.currentChapter);
-    
+    stats['totalChaptersRead'] = bookmarks.fold(
+      0,
+      (sum, b) => sum + b.currentChapter,
+    );
+
     // Status distribution
     final statusCounts = <String, int>{};
     for (var bookmark in bookmarks) {
       statusCounts[bookmark.status] = (statusCounts[bookmark.status] ?? 0) + 1;
     }
     stats['statusDistribution'] = statusCounts;
-    
+
     // Rating distribution
     final ratingCounts = <int, int>{};
     for (var bookmark in bookmarks) {
       if (bookmark.rating > 0) {
-        ratingCounts[bookmark.rating] = (ratingCounts[bookmark.rating] ?? 0) + 1;
+        ratingCounts[bookmark.rating] =
+            (ratingCounts[bookmark.rating] ?? 0) + 1;
       }
     }
     stats['ratingDistribution'] = ratingCounts;
-    
+
     // Tag usage
     final tagCounts = <String, int>{};
     for (var bookmark in bookmarks) {
@@ -117,26 +128,26 @@ class ExportService {
       }
     }
     stats['tagUsage'] = tagCounts;
-    
+
     // Average rating
     final ratedBookmarks = bookmarks.where((b) => b.rating > 0).toList();
     if (ratedBookmarks.isNotEmpty) {
-      stats['averageRating'] = ratedBookmarks
-          .map((b) => b.rating)
-          .reduce((a, b) => a + b) / ratedBookmarks.length;
+      stats['averageRating'] =
+          ratedBookmarks.map((b) => b.rating).reduce((a, b) => a + b) /
+          ratedBookmarks.length;
     }
-    
+
     return stats;
   }
 
   /// Generate HTML content with enhanced styling
   static String _generateHtmlContent(
-    List<Bookmark> bookmarks, 
-    List<Tag> tags, 
-    Map<String, dynamic> statistics
+    List<Bookmark> bookmarks,
+    List<Tag> tags,
+    Map<String, dynamic> statistics,
   ) {
     final exportDate = DateTime.now();
-    
+
     return '''
 <!DOCTYPE html>
 <html lang="en">

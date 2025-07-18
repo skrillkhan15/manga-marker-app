@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 class UrlExtractionService {
   // Common manga site patterns for chapter extraction
   static final List<RegExp> _chapterPatterns = [
@@ -37,7 +35,7 @@ class UrlExtractionService {
   /// Extract chapter number from URL
   static int? extractChapterNumber(String url) {
     if (url.isEmpty) return null;
-    
+
     for (var pattern in _chapterPatterns) {
       final match = pattern.firstMatch(url);
       if (match != null && match.groupCount >= 1) {
@@ -47,7 +45,7 @@ class UrlExtractionService {
         }
       }
     }
-    
+
     // Fallback: try to find any number in the URL path
     final uri = Uri.tryParse(url);
     if (uri != null) {
@@ -62,14 +60,14 @@ class UrlExtractionService {
         }
       }
     }
-    
+
     return null;
   }
 
   /// Extract manga title from URL
   static String? extractTitle(String url) {
     if (url.isEmpty) return null;
-    
+
     for (var pattern in _titlePatterns) {
       final match = pattern.firstMatch(url);
       if (match != null && match.groupCount >= 1) {
@@ -79,20 +77,27 @@ class UrlExtractionService {
         }
       }
     }
-    
+
     // Fallback: try to extract from domain and path
     final uri = Uri.tryParse(url);
     if (uri != null && uri.pathSegments.isNotEmpty) {
       // Look for meaningful path segments
       for (var segment in uri.pathSegments) {
-        if (segment.length > 3 && 
+        if (segment.length > 3 &&
             !segment.contains(RegExp(r'^\d+$')) && // not just numbers
-            !['manga', 'chapter', 'read', 'series', 'title', 'comic'].contains(segment.toLowerCase())) {
+            ![
+              'manga',
+              'chapter',
+              'read',
+              'series',
+              'title',
+              'comic',
+            ].contains(segment.toLowerCase())) {
           return _formatTitle(segment);
         }
       }
     }
-    
+
     return null;
   }
 
@@ -103,14 +108,14 @@ class UrlExtractionService {
         .replaceAll(RegExp(r'[-_+]'), ' ')
         .replaceAll(RegExp(r'%20'), ' ')
         .trim();
-    
+
     // Decode URL encoding
     try {
       formatted = Uri.decodeComponent(formatted);
     } catch (e) {
       // If decoding fails, use the original
     }
-    
+
     // Split into words and capitalize
     final words = formatted
         .split(RegExp(r'\s+'))
@@ -122,11 +127,11 @@ class UrlExtractionService {
           if (word.toLowerCase() == 'ni') return 'ni';
           if (word.toLowerCase() == 'ga') return 'ga';
           if (word.toLowerCase() == 'wo') return 'wo';
-          
+
           // Capitalize first letter, keep rest as is for proper nouns
           return word[0].toUpperCase() + word.substring(1);
         });
-    
+
     return words.join(' ');
   }
 
@@ -144,12 +149,12 @@ class UrlExtractionService {
   /// Check if URL is from a known manga site
   static bool isMangaSite(String url) {
     if (url.isEmpty) return false;
-    
+
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
-    
+
     final domain = uri.host.toLowerCase();
-    
+
     // Known manga site domains
     final mangaSites = [
       'mangadex.org',
@@ -162,11 +167,11 @@ class UrlExtractionService {
       'webtoons.com',
       'tapas.io',
     ];
-    
+
     return mangaSites.any((site) => domain.contains(site)) ||
-           domain.contains('manga') ||
-           domain.contains('webtoon') ||
-           domain.contains('comic');
+        domain.contains('manga') ||
+        domain.contains('webtoon') ||
+        domain.contains('comic');
   }
 
   /// Extract both title and chapter from URL

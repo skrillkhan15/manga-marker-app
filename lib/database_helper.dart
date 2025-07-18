@@ -17,10 +17,6 @@ class DatabaseHelper {
   static const String _activityLogKey = 'activityLog';
   static const String _devModeKey = 'devMode';
   static const String _sessionDataKey = 'sessionData';
-  static const String _autoUpdateKey = 'autoUpdateBookmarks';
-  static const String _dashboardVisibilityKey = 'dashboardWidgetVisibility';
-  static const String _backupFrequencyKey = 'backupFrequency';
-  static const String _lastBackupTimeKey = 'lastBackupTime';
 
   Future<SharedPreferences> get _prefs async => SharedPreferences.getInstance();
 
@@ -39,38 +35,8 @@ class DatabaseHelper {
 
   Future<void> addBookmark(Bookmark bookmark) async {
     final list = await getBookmarks();
-    // Normalize title for comparison
-    String normalize(String s) => s.trim().toLowerCase();
-    final existingIndex = list.indexWhere(
-      (b) =>
-          b.url == bookmark.url ||
-          normalize(b.title) == normalize(bookmark.title),
-    );
-    if (existingIndex != -1) {
-      // Update existing bookmark
-      final updatedBookmark = bookmark;
-      list[existingIndex] = updatedBookmark;
-      await saveBookmarks(list);
-      await addActivityLogEntry(
-        ActivityLogEntry(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          type: 'Bookmark Updated',
-          description: 'Updated bookmark for ${bookmark.title}',
-          timestamp: DateTime.now(),
-        ),
-      );
-    } else {
-      list.add(bookmark);
-      await saveBookmarks(list);
-      await addActivityLogEntry(
-        ActivityLogEntry(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          type: 'Bookmark Added',
-          description: 'Added bookmark for ${bookmark.title}',
-          timestamp: DateTime.now(),
-        ),
-      );
-    }
+    list.add(bookmark);
+    await saveBookmarks(list);
   }
 
   Future<void> updateBookmark(Bookmark bookmark) async {
@@ -131,21 +97,6 @@ class DatabaseHelper {
     }
   }
 
-  Future<void> updateTag(Tag tag) async {
-    final tags = await getTags();
-    final idx = tags.indexWhere((t) => t.id == tag.id);
-    if (idx != -1) {
-      tags[idx] = tag;
-      await saveTags(tags);
-    }
-  }
-
-  Future<void> deleteTag(String tagId) async {
-    final tags = await getTags();
-    tags.removeWhere((t) => t.id == tagId);
-    await saveTags(tags);
-  }
-
   // --- Reading Status ---
   Future<List<ReadingStatus>> getReadingStatus() async {
     final prefs = await _prefs;
@@ -174,27 +125,6 @@ class DatabaseHelper {
     // Corrected: encode Map to JSON string, don't double encode
     final list = goals.map((g) => json.encode(g.toMap())).toList();
     await prefs.setStringList(_readingGoalsKey, list);
-  }
-
-  Future<void> addReadingGoal(ReadingGoal goal) async {
-    final goals = await getReadingGoals();
-    goals.add(goal);
-    await saveReadingGoals(goals);
-  }
-
-  Future<void> updateReadingGoal(ReadingGoal goal) async {
-    final goals = await getReadingGoals();
-    final idx = goals.indexWhere((g) => g.id == goal.id);
-    if (idx != -1) {
-      goals[idx] = goal;
-      await saveReadingGoals(goals);
-    }
-  }
-
-  Future<void> deleteReadingGoal(String goalId) async {
-    final goals = await getReadingGoals();
-    goals.removeWhere((g) => g.id == goalId);
-    await saveReadingGoals(goals);
   }
 
   // --- View Presets ---
@@ -234,7 +164,7 @@ class DatabaseHelper {
         return true;
       }
     } catch (e) {
-      // print('Import error: $e');
+      print('Import error: $e');
     }
     return false;
   }
@@ -256,10 +186,10 @@ class DatabaseHelper {
       );
       if (path != null) {
         await File(path).writeAsString(jsonString);
-        // print('Exported to $path');
+        print('Exported to $path');
       }
     } catch (e) {
-      // print('Export error: $e');
+      print('Export error: $e');
     }
   }
 
@@ -371,7 +301,7 @@ class DatabaseHelper {
       );
       return compressed == null ? null : base64Encode(compressed);
     } catch (e) {
-      // print('QR Export error: $e');
+      print('QR Export error: $e');
       return null;
     }
   }
@@ -382,7 +312,7 @@ class DatabaseHelper {
       final jsonStr = utf8.decode(GZipDecoder().decodeBytes(compressed));
       return Bookmark.fromMap(json.decode(jsonStr));
     } catch (e) {
-      // print('QR Import error: $e');
+      print('QR Import error: $e');
       return null;
     }
   }
@@ -446,161 +376,5 @@ class DatabaseHelper {
         size += val.fold(0, (prev, s) => prev + utf8.encode(s).length);
     }
     return size;
-  }
-
-  // --- Auto-update Settings ---
-  Future<bool> getAutoUpdateBookmarks() async {
-    final prefs = await _prefs;
-    return prefs.getBool(_autoUpdateKey) ?? true;
-  }
-
-  Future<void> setAutoUpdateBookmarks(bool enabled) async {
-    final prefs = await _prefs;
-    await prefs.setBool(_autoUpdateKey, enabled);
-  }
-
-  // --- Dashboard Widget Visibility ---
-  Future<Map<String, bool>> getDashboardWidgetVisibility() async {
-    final prefs = await _prefs;
-    final raw = prefs.getString(_dashboardVisibilityKey);
-    if (raw != null) {
-      final Map<String, dynamic> decoded = json.decode(raw);
-      return decoded.map((k, v) => MapEntry(k, v as bool));
-    }
-    // Default: show all
-    return {
-      'totalBookmarks': true,
-      'favoriteBookmarks': true,
-      'totalChaptersRead': true,
-      'recentActivity': true,
-    };
-  }
-
-  Future<void> setDashboardWidgetVisibility(Map<String, bool> map) async {
-    final prefs = await _prefs;
-    await prefs.setString(_dashboardVisibilityKey, json.encode(map));
-  }
-
-  // --- URL-based Content Extraction ---
-  static final _chapterPatterns = <RegExp>[
-    // Common patterns for manga sites
-    RegExp(r'chapter[-_/]?(\d+)', caseSensitive: false),
-    RegExp(r'ch[-_/]?(\d+)', caseSensitive: false),
-    RegExp(r'/(\d+)/?$', caseSensitive: false), // ending with number
-    RegExp(r'episode[-_/]?(\d+)', caseSensitive: false),
-    RegExp(r'part[-_/]?(\d+)', caseSensitive: false),
-  ];
-
-  static final _titlePatterns = <RegExp>[
-    // Common patterns for extracting manga titles
-    RegExp(r'/manga/([^/]+)/', caseSensitive: false),
-    RegExp(r'/series/([^/]+)/', caseSensitive: false),
-    RegExp(r'/title/([^/]+)/', caseSensitive: false),
-    RegExp(r'/read/([^/]+)/', caseSensitive: false),
-  ];
-
-  int? extractChapterNumberFromUrl(String url) {
-    for (var pattern in _chapterPatterns) {
-      final match = pattern.firstMatch(url);
-      if (match != null && match.groupCount >= 1) {
-        return int.tryParse(match.group(1)!);
-      }
-    }
-    return null;
-  }
-
-  String? extractTitleFromUrl(String url) {
-    for (var pattern in _titlePatterns) {
-      final match = pattern.firstMatch(url);
-      if (match != null && match.groupCount >= 1) {
-        final raw = match.group(1)!;
-        final words = raw
-            .split(RegExp(r'[-_ ]'))
-            .map((w) => w.trim())
-            .where((w) => w.isNotEmpty);
-        return words
-            .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase())
-            .join(' ');
-      }
-    }
-    return null;
-  }
-
-  // --- Enhanced Export Options ---
-  Future<void> exportDataToHtml() async {
-    final bookmarks = await getBookmarks();
-
-    final htmlContent =
-        '''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Manga Marker Export</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .bookmark { border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px; }
-        .title { font-size: 18px; font-weight: bold; color: #333; }
-        .url { color: #666; margin: 5px 0; }
-        .details { margin: 10px 0; }
-        .tags { background: #f0f0f0; padding: 5px; border-radius: 3px; display: inline-block; margin: 2px; }
-    </style>
-</head>
-<body>
-    <h1>Manga Marker Export</h1>
-    <p>Exported on: ${DateTime.now().toString()}</p>
-    <p>Total Bookmarks: ${bookmarks.length}</p>
-    
-    ${bookmarks.map((b) => '''
-    <div class="bookmark">
-        <div class="title">${b.title}</div>
-        <div class="url"><a href="${b.url}">${b.url}</a></div>
-        <div class="details">
-            <strong>Status:</strong> ${b.status} | 
-            <strong>Chapter:</strong> ${b.currentChapter}/${b.totalChapters} | 
-            <strong>Rating:</strong> ${b.rating}/5
-        </div>
-        ${b.tags.isNotEmpty ? '<div>Tags: ${b.tags.map((t) => '<span class="tags">$t</span>').join(' ')}</div>' : ''}
-        ${b.notes.isNotEmpty ? '<div><strong>Notes:</strong> ${b.notes}</div>' : ''}
-    </div>
-    ''').join('')}
-</body>
-</html>
-    ''';
-
-    try {
-      final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Export as HTML',
-        fileName: 'manga_marker_export.html',
-        allowedExtensions: ['html'],
-        type: FileType.custom,
-      );
-      if (path != null) {
-        await File(path).writeAsString(htmlContent);
-        // print('Exported to $path');
-      }
-    } catch (e) {
-      // print('HTML Export error: $e');
-    }
-  }
-
-  Future<int> getBackupFrequency() async {
-    final prefs = await _prefs;
-    return prefs.getInt(_backupFrequencyKey) ?? 0;
-  }
-
-  Future<void> saveBackupFrequency(int frequency) async {
-    final prefs = await _prefs;
-    await prefs.setInt(_backupFrequencyKey, frequency);
-  }
-
-  Future<DateTime?> getLastBackupTime() async {
-    final prefs = await _prefs;
-    final str = prefs.getString(_lastBackupTimeKey);
-    return str != null ? DateTime.tryParse(str) : null;
-  }
-
-  Future<void> saveLastBackupTime(DateTime time) async {
-    final prefs = await _prefs;
-    await prefs.setString(_lastBackupTimeKey, time.toIso8601String());
   }
 }

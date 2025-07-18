@@ -10,7 +10,6 @@ import 'package:manga_marker/activity_log_screen.dart';
 import 'package:manga_marker/theme_manager.dart';
 import 'package:manga_marker/export_service.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import 'package:manga_marker/bookmark_provider.dart'; // Import BookmarkProvider
 import 'package:manga_marker/bookmark_list_view.dart'; // Import BookmarkListView
 import 'package:manga_marker/pin_lock_screen.dart';
