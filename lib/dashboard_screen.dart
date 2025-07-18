@@ -1,4 +1,4 @@
- v  import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:manga_marker/database_helper.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -24,17 +24,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final bookmarks = await _dbHelper.getBookmarks();
     setState(() {
       _totalBookmarks = bookmarks.length;
-      _favoriteBookmarks = bookmarks.where((b) => b.rating == 5).length; // Assuming 5-star rating means favorite
-      _totalChaptersRead = bookmarks.fold(0, (sum, b) => sum + b.currentChapter);
+      _favoriteBookmarks = bookmarks
+          .where((b) => b.rating == 5)
+          .length; // Assuming 5-star rating means favorite
+      _totalChaptersRead = bookmarks.fold(
+        0,
+        (sum, b) => sum + b.currentChapter,
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-      ),
+      appBar: AppBar(title: const Text('Dashboard')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

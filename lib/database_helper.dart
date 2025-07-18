@@ -127,6 +127,27 @@ class DatabaseHelper {
     await prefs.setStringList(_readingGoalsKey, list);
   }
 
+  Future<void> addReadingGoal(ReadingGoal goal) async {
+    final goals = await getReadingGoals();
+    goals.add(goal);
+    await saveReadingGoals(goals);
+  }
+
+  Future<void> updateReadingGoal(ReadingGoal goal) async {
+    final goals = await getReadingGoals();
+    final idx = goals.indexWhere((g) => g.id == goal.id);
+    if (idx != -1) {
+      goals[idx] = goal;
+      await saveReadingGoals(goals);
+    }
+  }
+
+  Future<void> deleteReadingGoal(String goalId) async {
+    final goals = await getReadingGoals();
+    goals.removeWhere((g) => g.id == goalId);
+    await saveReadingGoals(goals);
+  }
+
   // --- View Presets ---
   Future<List<ViewPreset>> getViewPresets() async {
     final prefs = await _prefs;
@@ -376,5 +397,37 @@ class DatabaseHelper {
         size += val.fold(0, (prev, s) => prev + utf8.encode(s).length);
     }
     return size;
+  }
+
+  int? extractChapterNumberFromUrl(String url) {
+    final regex = RegExp(r'chapter[-_]?([0-9]+)');
+    final match = regex.firstMatch(url);
+    return match != null ? int.tryParse(match.group(1) ?? '') : null;
+  }
+
+  Future<bool> getAutoUpdateBookmarks() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('autoUpdateBookmarks') ?? false;
+  }
+
+  Future<void> setAutoUpdateBookmarks(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('autoUpdateBookmarks', enabled);
+  }
+
+  Future<Map<String, bool>> getDashboardWidgetVisibility() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'goals': prefs.getBool('widget_goals') ?? true,
+      'recent': prefs.getBool('widget_recent') ?? true,
+      'stats': prefs.getBool('widget_stats') ?? true,
+    };
+  }
+
+  Future<void> setDashboardWidgetVisibility(Map<String, bool> values) async {
+    final prefs = await SharedPreferences.getInstance();
+    for (var entry in values.entries) {
+      await prefs.setBool('widget_${entry.key}', entry.value);
+    }
   }
 }
