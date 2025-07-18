@@ -42,7 +42,7 @@ dependencies:
   mobile_scanner: ^4.0.0
   haptic_feedback: ^0.5.1+1
   url_launcher: ^6.0.0
-  image_cropper: ^5.0.0
+  image_cropper: ^5.0.1
   drift: ^2.15.0
   sqlite3_flutter_libs: ^0.5.22
   path: ^1.9.0
