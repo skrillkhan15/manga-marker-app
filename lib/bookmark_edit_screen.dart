@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:async'; // Import for Timer
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:manga_marker/models.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:manga_marker/database_helper.dart';
+import 'package:path_provider/path_provider.dart';
 
 class BookmarkEditScreen extends StatefulWidget {
   final Bookmark? bookmark;
@@ -30,14 +30,10 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
   late int _rating;
   late String _mood;
   late String _collectionId;
-  late int _readingDuration; // New state variable for reading duration
   String? _parentCollectionId; // New state variable for parent collection
-  List<Bookmark> _possibleParentCollections = []; // To store potential parent bookmarks
-
-  // Timer variables
-  Timer? _timer;
-  int _elapsedSeconds = 0;
-  bool _isTimerRunning = false;
+  List<Bookmark> _possibleParentCollections =
+      []; // To store potential parent bookmarks
+  late String _coverImagePath; // New: file path for cover image
 
   @override
   void initState() {
@@ -45,6 +41,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     _title = widget.bookmark?.title ?? '';
     _url = widget.bookmark?.url ?? '';
     _coverImage = widget.bookmark?.coverImage ?? '';
+    _coverImagePath = widget.bookmark?.coverImage ?? '';
     _status = widget.bookmark?.status ?? 'Reading';
     _tags = widget.bookmark?.tags ?? [];
     _currentChapter = widget.bookmark?.currentChapter ?? 0;
@@ -53,45 +50,10 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     _rating = widget.bookmark?.rating ?? 0;
     _mood = widget.bookmark?.mood ?? '';
     _collectionId = widget.bookmark?.collectionId ?? '';
-    _readingDuration = 0; // Initialize reading duration
-    _parentCollectionId = widget.bookmark?.parentId; // Initialize from existing bookmark
+    _parentCollectionId =
+        widget.bookmark?.parentId; // Initialize from existing bookmark
 
     _loadPossibleParentCollections();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel(); // Cancel the timer when the widget is disposed
-    super.dispose();
-  }
-
-  void _startTimer() {
-    if (!_isTimerRunning) {
-      _isTimerRunning = true;
-      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        setState(() {
-          _elapsedSeconds++;
-        });
-      });
-    }
-  }
-
-  void _stopTimer() {
-    if (_isTimerRunning) {
-      _timer?.cancel();
-      setState(() {
-        _isTimerRunning = false;
-        _readingDuration = _elapsedSeconds ~/ 60; // Convert to minutes
-      });
-    }
-  }
-
-  void _resetTimer() {
-    _stopTimer();
-    setState(() {
-      _elapsedSeconds = 0;
-      _readingDuration = 0;
-    });
   }
 
   Future<void> _loadPossibleParentCollections() async {
@@ -99,19 +61,37 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     final allBookmarks = await dbHelper.getBookmarks();
     setState(() {
       // Filter out the current bookmark itself to prevent self-nesting
-      _possibleParentCollections = allBookmarks.where((b) => b.id != widget.bookmark?.id).toList();
+      _possibleParentCollections = allBookmarks
+          .where((b) => b.id != widget.bookmark?.id)
+          .toList();
     });
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-    );
-    if (pickedFile != null) {
-      final bytes = await File(pickedFile.path).readAsBytes();
-      setState(() {
-        _coverImage = base64Encode(bytes);
-      });
+    try {
+      final pickedFile = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+      );
+      if (pickedFile != null) {
+        final appDir = await getApplicationDocumentsDirectory();
+        final extension = pickedFile.path.split('.').last;
+        final fileName =
+            'cover_${DateTime.now().millisecondsSinceEpoch}.$extension';
+        final savedPath = '${appDir.path}/$fileName';
+        final savedFile = await File(pickedFile.path).copy(savedPath);
+        setState(() {
+          _coverImagePath = savedFile.path;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -119,10 +99,12 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       final newBookmark = Bookmark(
-        id: widget.bookmark?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        id:
+            widget.bookmark?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
         title: _title,
         url: _url,
-        coverImage: _coverImage,
+        coverImage: _coverImagePath,
         status: _status,
         tags: _tags,
         currentChapter: _currentChapter,
@@ -137,33 +119,21 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
       );
 
       // Add to history if currentChapter has increased
-      if (widget.bookmark != null && _currentChapter > widget.bookmark!.currentChapter) {
+      if (widget.bookmark != null &&
+          _currentChapter > widget.bookmark!.currentChapter) {
         newBookmark.history.add({
           'chapter': _currentChapter,
           'timestamp': DateTime.now().toIso8601String(),
-          'duration': _readingDuration, // Include duration
         });
-
-        // Update reading goals
-        final goals = await DatabaseHelper().getReadingGoals();
-        final chaptersRead = _currentChapter - widget.bookmark!.currentChapter;
-        final minutesRead = _readingDuration;
-
-        for (var goal in goals) {
-          if (DateTime.now().isAfter(goal.startDate) && DateTime.now().isBefore(goal.endDate)) {
-            if (goal.type == 'Chapters') {
-              goal.currentValue += chaptersRead;
-            } else if (goal.type == 'Minutes') {
-              goal.currentValue += minutesRead;
-            } else if (goal.type == 'Manga' && newBookmark.status == 'Completed' && widget.bookmark?.status != 'Completed') {
-              goal.currentValue += 1;
-            }
-            await DatabaseHelper().updateReadingGoal(goal);
-          }
-        }
       }
 
       Navigator.of(context).pop(newBookmark);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bookmark saved!'),
+          backgroundColor: Colors.green,
+        ),
+      );
     }
   }
 
@@ -190,10 +160,12 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
   Future<void> _showQrCode() async {
     final dbHelper = DatabaseHelper();
     final newBookmark = Bookmark(
-      id: widget.bookmark?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      id:
+          widget.bookmark?.id ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
       title: _title,
       url: _url,
-      coverImage: _coverImage,
+      coverImage: _coverImagePath,
       status: _status,
       tags: _tags,
       currentChapter: _currentChapter,
@@ -206,7 +178,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
       lastUpdated: DateTime.now(),
       history: widget.bookmark?.history ?? [],
     );
-    final qrData = await dbHelper.exportBookmarkAsQrCode(jsonEncode(newBookmark.toJson()));
+    final qrData = await dbHelper.exportBookmarkAsQrCode(newBookmark);
     if (qrData != null) {
       showDialog(
         context: context,
@@ -234,9 +206,27 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
       appBar: AppBar(
         title: Text(widget.bookmark == null ? 'Add Bookmark' : 'Edit Bookmark'),
         actions: [
-          IconButton(icon: const Icon(Icons.qr_code), onPressed: _showQrCode),
-          IconButton(icon: const Icon(Icons.undo), onPressed: _undoChanges),
-          IconButton(icon: const Icon(Icons.save), onPressed: _saveForm),
+          Semantics(
+            label: 'Show QR Code',
+            child: IconButton(
+              icon: const Icon(Icons.qr_code),
+              onPressed: _showQrCode,
+            ),
+          ),
+          Semantics(
+            label: 'Undo Changes',
+            child: IconButton(
+              icon: const Icon(Icons.undo),
+              onPressed: _undoChanges,
+            ),
+          ),
+          Semantics(
+            label: 'Save Bookmark',
+            child: IconButton(
+              icon: const Icon(Icons.save),
+              onPressed: _saveForm,
+            ),
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -245,12 +235,26 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
           key: _formKey,
           child: Column(
             children: [
-              if (_coverImage.isNotEmpty)
-                Image.memory(base64Decode(_coverImage), height: 150),
-              TextButton.icon(
-                icon: const Icon(Icons.image),
-                label: const Text('Select Cover Image'),
-                onPressed: _pickImage,
+              if (_coverImagePath.isNotEmpty &&
+                  File(_coverImagePath).existsSync())
+                Semantics(
+                  label: 'Cover image preview',
+                  child: Image.file(File(_coverImagePath), height: 150),
+                ),
+              if ((_coverImagePath.isEmpty ||
+                      !File(_coverImagePath).existsSync()) &&
+                  _coverImage.isNotEmpty)
+                Semantics(
+                  label: 'Cover image preview',
+                  child: Image.memory(base64Decode(_coverImage), height: 150),
+                ),
+              Semantics(
+                label: 'Pick Cover Image',
+                child: TextButton.icon(
+                  icon: const Icon(Icons.image),
+                  label: const Text('Pick Cover Image'),
+                  onPressed: _pickImage,
+                ),
               ),
               TextFormField(
                 initialValue: _title,
@@ -269,7 +273,8 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
                 onSaved: (value) => _url = value!,
                 onChanged: (value) {
                   _url = value;
-                  final detectedChapter = DatabaseHelper().extractChapterNumberFromUrl(value);
+                  final detectedChapter = DatabaseHelper()
+                      .extractChapterNumberFromUrl(value);
                   if (detectedChapter != null) {
                     setState(() {
                       _currentChapter = detectedChapter;
@@ -334,34 +339,11 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
                 ),
                 onSaved: (value) => _collectionId = value!,
               ),
-              TextFormField(
-                initialValue: _readingDuration.toString(),
-                decoration: const InputDecoration(
-                  labelText: 'Reading Duration (minutes)',
-                ),
-                keyboardType: TextInputType.number,
-                onSaved: (value) => _readingDuration = int.tryParse(value ?? '0') ?? 0,
-              ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: _isTimerRunning ? _stopTimer : _startTimer,
-                    child: Text(_isTimerRunning ? 'Stop Timer' : 'Start Timer'),
-                  ),
-                  const SizedBox(width: 10),
-                  ElevatedButton(
-                    onPressed: _resetTimer,
-                    child: const Text('Reset Timer'),
-                  ),
-                ],
-              ),
-              Text('Elapsed Time: ${_elapsedSeconds ~/ 60}m ${_elapsedSeconds % 60}s'),
-              const SizedBox(height: 10),
               DropdownButtonFormField<String>(
                 value: _parentCollectionId,
-                decoration: const InputDecoration(labelText: 'Parent Collection'),
+                decoration: const InputDecoration(
+                  labelText: 'Parent Collection',
+                ),
                 items: [
                   const DropdownMenuItem<String>(
                     value: null,
@@ -372,7 +354,7 @@ class _BookmarkEditScreenState extends State<BookmarkEditScreen> {
                       value: bookmark.id,
                       child: Text(bookmark.title),
                     );
-                  }).toList(),
+                  }),
                 ],
                 onChanged: (String? newValue) {
                   setState(() {

@@ -267,3 +267,132 @@ class ActivityLogEntry {
   factory ActivityLogEntry.fromJson(String source) =>
       ActivityLogEntry.fromMap(json.decode(source));
 }
+
+
+// ------------------ THEME PRESET ------------------
+class ThemePreset {
+  String name;
+  int primaryColor;
+  int accentColor;
+  int backgroundColor;
+  int textColor;
+  bool isDark;
+  double cardRadius;
+  double shadowElevation;
+  double blurLevel;
+
+  ThemePreset({
+    required this.name,
+    required this.primaryColor,
+    required this.accentColor,
+    required this.backgroundColor,
+    required this.textColor,
+    required this.isDark,
+    this.cardRadius = 8.0,
+    this.shadowElevation = 1.0,
+    this.blurLevel = 0.0,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'name': name,
+    'primaryColor': primaryColor,
+    'accentColor': accentColor,
+    'backgroundColor': backgroundColor,
+    'textColor': textColor,
+    'isDark': isDark,
+    'cardRadius': cardRadius,
+    'shadowElevation': shadowElevation,
+    'blurLevel': blurLevel,
+  };
+
+  factory ThemePreset.fromMap(Map<String, dynamic> map) => ThemePreset(
+    name: map['name'] ?? '',
+    primaryColor: map['primaryColor'] ?? 0,
+    accentColor: map['accentColor'] ?? 0,
+    backgroundColor: map['backgroundColor'] ?? 0,
+    textColor: map['textColor'] ?? 0,
+    isDark: map['isDark'] ?? false,
+    cardRadius: map['cardRadius'] ?? 8.0,
+    shadowElevation: map['shadowElevation'] ?? 1.0,
+    blurLevel: map['blurLevel'] ?? 0.0,
+  );
+
+  String toJson() => json.encode(toMap());
+  factory ThemePreset.fromJson(String source) =>
+      ThemePreset.fromMap(json.decode(source));
+}
+
+// ------------------ USER PROFILE ------------------
+class UserProfile {
+  String username;
+  String? pin;
+  String? securityQuestion;
+  String? securityAnswer;
+
+  UserProfile({required this.username, this.pin, this.securityQuestion, this.securityAnswer});
+
+  Map<String, dynamic> toMap() => {
+    'username': username,
+    'pin': pin,
+    'securityQuestion': securityQuestion,
+    'securityAnswer': securityAnswer,
+  };
+
+  factory UserProfile.fromMap(Map<String, dynamic> map) => UserProfile(
+    username: map['username'] ?? 'Default',
+    pin: map['pin'],
+    securityQuestion: map['securityQuestion'],
+    securityAnswer: map['securityAnswer'],
+  );
+
+  String toJson() => json.encode(toMap());
+  factory UserProfile.fromJson(String source) => UserProfile.fromMap(json.decode(source));
+}
+
+// ------------------ SESSION DATA ------------------
+enum ViewMode {
+  compact,
+  expanded,
+  cardStack,
+  coverWall,
+}
+
+// ------------------ SESSION DATA ------------------
+class SessionData {
+  double scrollOffset;
+  ViewMode viewMode;
+  String? filterStatus;
+  String? filterTag;
+  String? filterCollection;
+  String? currentParentId;
+
+  SessionData({
+    this.scrollOffset = 0.0,
+    this.viewMode = ViewMode.compact,
+    this.filterStatus,
+    this.filterTag,
+    this.filterCollection,
+    this.currentParentId,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'scrollOffset': scrollOffset,
+    'viewMode': viewMode.name,
+    'filterStatus': filterStatus,
+    'filterTag': filterTag,
+    'filterCollection': filterCollection,
+    'currentParentId': currentParentId,
+  };
+
+  factory SessionData.fromMap(Map<String, dynamic> map) => SessionData(
+    scrollOffset: map['scrollOffset'] ?? 0.0,
+    viewMode: ViewMode.values.byName(map['viewMode'] ?? 'compact'),
+    filterStatus: map['filterStatus'],
+    filterTag: map['filterTag'],
+    filterCollection: map['filterCollection'],
+    currentParentId: map['currentParentId'],
+  );
+
+  String toJson() => json.encode(toMap());
+  factory SessionData.fromJson(String source) => SessionData.fromMap(json.decode(source));
+}

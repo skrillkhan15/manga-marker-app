@@ -9,57 +9,46 @@ class ThemeManager with ChangeNotifier {
   Color get primaryColor => _primaryColor;
 
   ThemeManager() {
-    _loadTheme();
+    _loadThemeMode();
   }
 
-  void _loadTheme() async {
+  Future<void> _loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDarkMode = prefs.getBool('isDarkMode');
-    final colorValue = prefs.getInt('primaryColor');
-
-    if (isDarkMode != null) {
-      _themeMode = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+    final themeModeString = prefs.getString('themeMode');
+    if (themeModeString != null) {
+      _themeMode = ThemeMode.values.firstWhere(
+        (e) => e.toString() == themeModeString,
+        orElse: () => ThemeMode.system,
+      );
+      notifyListeners();
     }
-
+    final colorValue = prefs.getInt('primaryColor');
     if (colorValue != null) {
       _primaryColor = Color(colorValue);
+      notifyListeners();
     }
-
-    notifyListeners();
   }
 
-  void toggleTheme(bool isDarkMode) async {
-    _themeMode = isDarkMode ? ThemeMode.dark : ThemeMode.light;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isDarkMode', isDarkMode);
-    notifyListeners();
+  Future<void> setThemeMode(ThemeMode mode) async {
+    if (_themeMode != mode) {
+      _themeMode = mode;
+      notifyListeners();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('themeMode', mode.toString());
+    }
   }
 
-  void setPrimaryColor(Color color) async {
-    _primaryColor = color;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('primaryColor', color.value);
-    notifyListeners();
+  Future<void> setPrimaryColor(Color color) async {
+    if (_primaryColor != color) {
+      _primaryColor = color;
+      notifyListeners();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('primaryColor', color.value);
+    }
   }
 
-  MaterialColor getMaterialColor(Color color) {
-    final int red = color.red;
-    final int green = color.green;
-    final int blue = color.blue;
-
-    final Map<int, Color> shades = {
-      50: Color.fromRGBO(red, green, blue, .1),
-      100: Color.fromRGBO(red, green, blue, .2),
-      200: Color.fromRGBO(red, green, blue, .3),
-      300: Color.fromRGBO(red, green, blue, .4),
-      400: Color.fromRGBO(red, green, blue, .5),
-      500: Color.fromRGBO(red, green, blue, .6),
-      600: Color.fromRGBO(red, green, blue, .7),
-      700: Color.fromRGBO(red, green, blue, .8),
-      800: Color.fromRGBO(red, green, blue, .9),
-      900: Color.fromRGBO(red, green, blue, 1),
-    };
-
-    return MaterialColor(color.value, shades);
-  }
+  // Placeholder for other theme-related properties if needed
+  double get shadowElevation => 1.0; // Example
+  double get cardRadius => 8.0; // Example
+  double get blurLevel => 0.0; // Example
 }

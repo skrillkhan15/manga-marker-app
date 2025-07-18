@@ -33,7 +33,8 @@ class _ReadingGoalsScreenState extends State<ReadingGoalsScreen> {
     int targetValue = goal?.targetValue ?? 0;
     String type = goal?.type ?? 'Chapters';
     DateTime startDate = goal?.startDate ?? DateTime.now();
-    DateTime endDate = goal?.endDate ?? DateTime.now().add(const Duration(days: 30));
+    DateTime endDate =
+        goal?.endDate ?? DateTime.now().add(const Duration(days: 30));
 
     await showDialog(
       context: context,
@@ -57,7 +58,9 @@ class _ReadingGoalsScreenState extends State<ReadingGoalsScreen> {
               DropdownButtonFormField<String>(
                 value: type,
                 decoration: const InputDecoration(labelText: 'Goal Type'),
-                items: <String>['Chapters', 'Manga', 'Minutes'].map((String value) {
+                items: <String>['Chapters', 'Manga', 'Minutes'].map((
+                  String value,
+                ) {
                   return DropdownMenuItem<String>(
                     value: value,
                     child: Text(value),
@@ -68,7 +71,9 @@ class _ReadingGoalsScreenState extends State<ReadingGoalsScreen> {
                 },
               ),
               ListTile(
-                title: Text('Start Date: ${DateFormat('yyyy-MM-dd').format(startDate)}'),
+                title: Text(
+                  'Start Date: ${DateFormat('yyyy-MM-dd').format(startDate)}',
+                ),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () async {
                   final pickedDate = await showDatePicker(
@@ -85,7 +90,9 @@ class _ReadingGoalsScreenState extends State<ReadingGoalsScreen> {
                 },
               ),
               ListTile(
-                title: Text('End Date: ${DateFormat('yyyy-MM-dd').format(endDate)}'),
+                title: Text(
+                  'End Date: ${DateFormat('yyyy-MM-dd').format(endDate)}',
+                ),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () async {
                   final pickedDate = await showDatePicker(
@@ -113,14 +120,16 @@ class _ReadingGoalsScreenState extends State<ReadingGoalsScreen> {
             onPressed: () async {
               if (title.isNotEmpty && targetValue > 0) {
                 if (goal == null) {
-                  await _dbHelper.addReadingGoal(ReadingGoal(
-                    id: const Uuid().v4(),
-                    title: title,
-                    targetValue: targetValue,
-                    type: type,
-                    startDate: startDate,
-                    endDate: endDate,
-                  ));
+                  await _dbHelper.addReadingGoal(
+                    ReadingGoal(
+                      id: const Uuid().v4(),
+                      title: title,
+                      targetValue: targetValue,
+                      type: type,
+                      startDate: startDate,
+                      endDate: endDate,
+                    ),
+                  );
                 } else {
                   goal.title = title;
                   goal.targetValue = targetValue;
@@ -130,7 +139,7 @@ class _ReadingGoalsScreenState extends State<ReadingGoalsScreen> {
                   await _dbHelper.updateReadingGoal(goal);
                 }
                 _loadGoals();
-                Navigator.pop(context);
+                if (mounted) Navigator.pop(context);
               }
             },
             child: Text(goal == null ? 'Add' : 'Save'),
@@ -148,13 +157,9 @@ class _ReadingGoalsScreenState extends State<ReadingGoalsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reading Goals'),
-      ),
+      appBar: AppBar(title: const Text('Reading Goals')),
       body: _goals.isEmpty
-          ? const Center(
-              child: Text('No reading goals yet. Add one!'),
-            )
+          ? const Center(child: Text('No reading goals yet. Add one!'))
           : ListView.builder(
               itemCount: _goals.length,
               itemBuilder: (context, index) {
@@ -162,8 +167,9 @@ class _ReadingGoalsScreenState extends State<ReadingGoalsScreen> {
                 return ListTile(
                   title: Text(goal.title),
                   subtitle: Text(
-                      'Type: ${goal.type}, Target: ${goal.targetValue}, Current: ${goal.currentValue}\n'
-                      '${DateFormat('yyyy-MM-dd').format(goal.startDate)} - ${DateFormat('yyyy-MM-dd').format(goal.endDate)}'),
+                    'Type: ${goal.type}, Target: ${goal.targetValue}, Current: ${goal.currentValue}\n'
+                    '${DateFormat('yyyy-MM-dd').format(goal.startDate)} - ${DateFormat('yyyy-MM-dd').format(goal.endDate)}',
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

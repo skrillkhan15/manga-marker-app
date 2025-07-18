@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manga_marker/database_helper.dart';
+import 'package:intl/intl.dart';
 
 class BackupSettingsScreen extends StatefulWidget {
   const BackupSettingsScreen({super.key});
@@ -36,20 +37,30 @@ class _BackupSettingsScreenState extends State<BackupSettingsScreen> {
   }
 
   Future<void> _performBackup() async {
-    await _dbHelper.performAutoBackup();
-    await _dbHelper.saveLastBackupTime(DateTime.now());
-    _loadBackupSettings(); // Reload to update last backup time
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Manual backup created!')),
-    );
+    try {
+      await _dbHelper.performAutoBackup();
+      await _dbHelper.saveLastBackupTime(DateTime.now());
+      _loadBackupSettings(); // Reload to update last backup time
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Manual backup created!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Backup failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Backup Settings'),
-      ),
+      appBar: AppBar(title: const Text('Backup Settings')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

@@ -44,29 +44,110 @@ class _TagManagementScreenState extends State<TagManagementScreen> {
               onChanged: (value) => tagName = value,
             ),
             const SizedBox(height: 10),
-            // Simple color picker (for demonstration)
-            Row(
+            // Expanded color picker options
+            Wrap(
+              spacing: 8.0,
+              runSpacing: 8.0,
               children: [
-                const Text('Tag Color:'),
-                const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: () async {
-                    // In a real app, you'd use a color picker package
-                    // For simplicity, we'll cycle through a few colors
-                    final colors = [Colors.blue, Colors.red, Colors.green, Colors.orange, Colors.purple];
-                    int currentIndex = colors.indexOf(tagColor);
-                    setState(() {
-                      tagColor = colors[(currentIndex + 1) % colors.length];
-                    });
-                  },
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: tagColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
+                _buildColorSelectionCircle(
+                  Colors.red,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.pink,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.purple,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.deepPurple,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.indigo,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.blue,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.lightBlue,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.cyan,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.teal,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.green,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.lightGreen,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.lime,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.yellow,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.amber,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.orange,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.deepOrange,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.brown,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.grey,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.blueGrey,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
+                ),
+                _buildColorSelectionCircle(
+                  Colors.black,
+                  tagColor,
+                  (color) => setState(() => tagColor = color),
                 ),
               ],
             ),
@@ -81,11 +162,13 @@ class _TagManagementScreenState extends State<TagManagementScreen> {
             onPressed: () async {
               if (tagName.isNotEmpty) {
                 if (tag == null) {
-                  await _dbHelper.addTag(Tag(
-                    id: const Uuid().v4(),
-                    name: tagName,
-                    color: tagColor.value,
-                  ));
+                  await _dbHelper.addTag(
+                    Tag(
+                      id: const Uuid().v4(),
+                      name: tagName,
+                      color: tagColor.value,
+                    ),
+                  );
                 } else {
                   tag.name = tagName;
                   tag.color = tagColor.value;
@@ -102,6 +185,31 @@ class _TagManagementScreenState extends State<TagManagementScreen> {
     );
   }
 
+  Widget _buildColorSelectionCircle(
+    Color color,
+    Color currentColor,
+    ValueChanged<Color> onColorSelected,
+  ) {
+    final isSelected = currentColor.value == color.value;
+    return GestureDetector(
+      onTap: () => onColorSelected(color),
+      child: Container(
+        width: 30,
+        height: 30,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: isSelected
+              ? Border.all(
+                  color: Theme.of(context).colorScheme.secondary,
+                  width: 2,
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
   Future<void> _deleteTag(String tagId) async {
     await _dbHelper.deleteTag(tagId);
     _loadTags();
@@ -110,19 +218,18 @@ class _TagManagementScreenState extends State<TagManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manage Tags'),
-      ),
+      appBar: AppBar(title: const Text('Manage Tags')),
       body: _tags.isEmpty
-          ? const Center(
-              child: Text('No tags yet. Add one!'),
-            )
+          ? const Center(child: Text('No tags yet. Add one!'))
           : ListView.builder(
               itemCount: _tags.length,
               itemBuilder: (context, index) {
                 final tag = _tags[index];
                 return ListTile(
-                  leading: Icon(Icons.label, color: tag.color != null ? Color(tag.color!) : Colors.grey),
+                  leading: Icon(
+                    Icons.label,
+                    color: tag.color != null ? Color(tag.color!) : Colors.grey,
+                  ),
                   title: Text(tag.name),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
