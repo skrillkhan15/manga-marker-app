@@ -6,11 +6,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-// ignore: avoid_web_libraries_in_flutter
-// Only import on web
-// dart:html is only available on web, so guard its usage
-import 'dart:html' as html;
-
 class ManageProfilesScreen extends StatelessWidget {
   const ManageProfilesScreen({super.key});
 
@@ -77,22 +72,7 @@ class ManageProfilesScreen extends StatelessWidget {
                                     onTap: () async {
                                       if (kIsWeb) {
                                         // Web avatar picker
-                                        final input =
-                                            html.FileUploadInputElement();
-                                        input.accept = 'image/*';
-                                        input.click();
-                                        await input.onChange.first;
-                                        if (input.files != null &&
-                                            input.files!.isNotEmpty) {
-                                          final file = input.files!.first;
-                                          final reader = html.FileReader();
-                                          reader.readAsDataUrl(file);
-                                          await reader.onLoad.first;
-                                          setState(() {
-                                            avatarPath =
-                                                reader.result as String;
-                                          });
-                                        }
+                                        // TODO: Implement web avatar picker
                                       } else {
                                         final picker = ImagePicker();
                                         final picked = await picker.pickImage(

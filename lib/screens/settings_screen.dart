@@ -14,29 +14,26 @@ import 'dart:convert';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/foundation.dart' show kReleaseMode;
-// Web-only avatar picker
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
 import '../screens/help_about_screen.dart';
 import 'package:path_provider/path_provider.dart'; // Add to pubspec.yaml
 import 'package:file_picker/file_picker.dart'; // Add to pubspec.yaml
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'manage_profiles_screen.dart';
 
-Future<String?> pickWebAvatar() async {
-  final input = html.FileUploadInputElement();
-  input.accept = 'image/*';
-  input.click();
-  await input.onChange.first;
-  if (input.files != null && input.files!.isNotEmpty) {
-    final file = input.files!.first;
-    final reader = html.FileReader();
-    reader.readAsDataUrl(file);
-    await reader.onLoad.first;
-    return reader.result as String;
-  }
-  return null;
-}
+// Remove: Future<String?> pickWebAvatar() async {
+// Remove:   final input = html.FileUploadInputElement();
+// Remove:   input.accept = 'image/*';
+// Remove:   input.click();
+// Remove:   await input.onChange.first;
+// Remove:   if (input.files != null && input.files!.isNotEmpty) {
+// Remove:     final file = input.files!.first;
+// Remove:     final reader = html.FileReader();
+// Remove:     reader.readAsDataUrl(file);
+// Remove:     await reader.onLoad.first;
+// Remove:     return reader.result as String;
+// Remove:   }
+// Remove:   return null;
+// Remove: }
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -191,12 +188,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   GestureDetector(
                                     onTap: () async {
                                       if (kIsWeb) {
-                                        final result = await pickWebAvatar();
-                                        if (result != null) {
-                                          setState(() {
-                                            avatarPath = result;
-                                          });
-                                        }
+                                        // TODO: Implement web avatar picker
+                                        // For now, we'll just show a placeholder
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Web avatar picker not implemented yet.',
+                                            ),
+                                            backgroundColor: Colors.orange,
+                                          ),
+                                        );
                                       } else {
                                         // Mobile/desktop: use ImagePicker
                                         final picker = ImagePicker();
