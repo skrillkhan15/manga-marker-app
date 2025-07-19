@@ -1,366 +1,173 @@
 import 'package:flutter/material.dart';
-
-import 'package:manga_marker/bookmark_edit_screen.dart';
-import 'package:manga_marker/database_helper.dart';
-import 'package:manga_marker/models.dart';
-import 'package:manga_marker/reading_goals_screen.dart';
-import 'package:manga_marker/dashboard_screen.dart';
-import 'package:manga_marker/settings_screen.dart';
-import 'package:manga_marker/activity_log_screen.dart';
-import 'package:manga_marker/theme_manager.dart';
-import 'package:manga_marker/export_service.dart';
 import 'package:provider/provider.dart';
-import 'package:manga_marker/bookmark_provider.dart'; // Import BookmarkProvider
-import 'package:manga_marker/bookmark_list_view.dart'; // Import BookmarkListView
-import 'package:manga_marker/pin_lock_screen.dart';
-import 'package:manga_marker/user_profile_screen.dart';
-import 'package:manga_marker/manga_viewer_screen.dart';
-import 'package:manga_marker/pdf_cbz_viewer_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:manga_marker/providers/manga_provider.dart';
+import 'package:manga_marker/providers/theme_provider.dart';
+import 'package:manga_marker/providers/settings_provider.dart';
+import 'profile_provider.dart';
+import 'package:manga_marker/screens/main_screen.dart';
+import 'package:manga_marker/screens/pin_lock_screen.dart';
+import 'package:manga_marker/screens/walkthrough_screen.dart';
+import 'package:manga_marker/theme/app_theme.dart';
+import 'dart:convert'; // Added for json.decode and json.encode
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Legacy data migration
+  final prefs = await SharedPreferences.getInstance();
+  final profilesJson = prefs.getString('profiles');
+  final List<dynamic> profiles = profilesJson != null
+      ? (json.decode(profilesJson) as List)
+      : [];
+  final hasGlobalManga = prefs.containsKey('manga_list');
+  final hasGlobalSettings = prefs.containsKey('app_settings');
+  bool migrated = false;
+  if (profiles.length == 1 && (hasGlobalManga || hasGlobalSettings)) {
+    final profileId = profiles[0]['id'] as String;
+    // Migrate manga
+    if (hasGlobalManga) {
+      final mangaJson = prefs.getString('manga_list');
+      await prefs.setString('manga_list_' + profileId, mangaJson ?? '');
+      await prefs.remove('manga_list');
+      migrated = true;
+    }
+    // Migrate settings
+    if (hasGlobalSettings) {
+      final settingsJson = prefs.getString('app_settings');
+      if (settingsJson != null) {
+        final settings = json.decode(settingsJson) as Map<String, dynamic>;
+        for (final entry in settings.entries) {
+          await prefs.setString(
+            '${entry.key}_$profileId',
+            json.encode(entry.value),
+          );
+        }
+      }
+      await prefs.remove('app_settings');
+      migrated = true;
+    }
+    // Show one-time migration flag
+    await prefs.setBool('migration_done', true);
+  }
+
   runApp(
     MultiProvider(
-      // Use MultiProvider for multiple providers
       providers: [
-        ChangeNotifierProvider(create: (context) => ThemeManager()),
-        ChangeNotifierProvider(
-          create: (context) => BookmarkProvider(),
-        ), // Add BookmarkProvider
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider('default')),
+        ChangeNotifierProvider(create: (_) => MangaProvider('default')),
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
       ],
-      child: const MyApp(),
+      child: MangaMarksAppWithMigrationDialog(migrated: migrated),
     ),
   );
 }
 
-class MyApp extends StatefulWidget {
-  const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  bool _authenticated = false;
-  String? _selectedProfile;
-
-  void _onProfileSelected(String profileName) {
-    setState(() {
-      _selectedProfile = profileName;
-    });
-  }
-
-  void _onAuthenticated() {
-    setState(() {
-      _authenticated = true;
-    });
-  }
+class MangaMarksAppWithMigrationDialog extends StatelessWidget {
+  final bool migrated;
+  const MangaMarksAppWithMigrationDialog({required this.migrated, super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ThemeManager>(
-      builder: (context, themeManager, child) {
-        return MaterialApp(
-          title: 'Manga Marker',
-          theme: ThemeData(
-            primarySwatch: Colors.blue,
-            visualDensity: VisualDensity.adaptivePlatformDensity,
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            primarySwatch: Colors.blue,
-            brightness: Brightness.dark,
-            visualDensity: VisualDensity.adaptivePlatformDensity,
-            useMaterial3: true,
-          ),
-          themeMode: themeManager.themeMode,
-          home: _selectedProfile == null
-              ? UserProfileScreen(onProfileSelected: _onProfileSelected)
-              : !_authenticated
-              ? PinLockScreen(onAuthenticated: _onAuthenticated)
-              : const MyHomePage(title: 'Manga Marker'),
-        );
+    return Builder(
+      builder: (context) {
+        if (migrated) {
+          // Show dialog after first frame
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Data Migration Complete'),
+                content: const Text(
+                  'Your existing manga and settings have been migrated to your profile for improved privacy and isolation.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          });
+        }
+        return const MangaMarksApp();
       },
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
+class MangaMarksApp extends StatefulWidget {
+  const MangaMarksApp({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MangaMarksApp> createState() => _MangaMarksAppState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  final dbHelper = DatabaseHelper();
-  // bookmarks list will now be managed by BookmarkProvider
+class _MangaMarksAppState extends State<MangaMarksApp> {
+  bool _isUnlocked = false;
+  bool _showWalkthrough = false;
 
   @override
   void initState() {
     super.initState();
-    // Bookmarks are loaded by the provider, no need to call _loadBookmarks here
+    _checkAppState();
   }
 
-  Future<void> _addBookmark() async {
-    final newBookmark = await Navigator.of(context).push<Bookmark>(
-      MaterialPageRoute(builder: (context) => const BookmarkEditScreen()),
-    );
-    if (!mounted) return;
-    if (newBookmark != null) {
-      // Use provider to add bookmark
-      Provider.of<BookmarkProvider>(
-        context,
-        listen: false,
-      ).addBookmark(newBookmark);
+  Future<void> _checkAppState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final walkthroughCompleted =
+        prefs.getBool('walkthrough_completed') ?? false;
+    final hasPin = prefs.getString('app_pin') != null;
+
+    if (!walkthroughCompleted) {
+      setState(() {
+        _showWalkthrough = true;
+      });
+    } else if (hasPin) {
+      // Show PIN lock
+      setState(() {
+        _isUnlocked = false;
+      });
+    } else {
+      // No PIN, go directly to main screen
+      setState(() {
+        _isUnlocked = true;
+      });
     }
   }
 
-  Future<void> _updateBookmark(Bookmark bookmark) async {
-    // Use provider to update bookmark
-    Provider.of<BookmarkProvider>(
-      context,
-      listen: false,
-    ).updateBookmark(bookmark);
+  void _onUnlock() {
+    setState(() {
+      _isUnlocked = true;
+    });
+  }
+
+  void _onWalkthroughComplete() {
+    setState(() {
+      _showWalkthrough = false;
+      _isUnlocked = true;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    // Consume bookmarks from the provider
-    final bookmarks = Provider.of<BookmarkProvider>(context).bookmarks;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf),
-            tooltip: 'PDF/CBZ Viewer',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const PdfCbzViewerScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.menu_book),
-            tooltip: 'Manga Viewer',
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const MangaViewerScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.dashboard),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const DashboardScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.history),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ActivityLogScreen(),
-                ),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.shuffle),
-            onPressed: () async {
-              if (bookmarks.isNotEmpty) {
-                final randomBookmark = (bookmarks..shuffle()).first;
-                final updatedBookmark = await Navigator.of(context)
-                    .push<Bookmark>(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            BookmarkEditScreen(bookmark: randomBookmark),
-                      ),
-                    );
-                if (updatedBookmark != null) {
-                  await _updateBookmark(updatedBookmark);
-                }
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.flag),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const ReadingGoalsScreen(),
-                ),
-              );
-            },
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) async {
-              switch (value) {
-                case 'settings':
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const SettingsScreen(),
-                    ),
-                  );
-                  break;
-                case 'export_json':
-                  final currentBookmarks = Provider.of<BookmarkProvider>(
-                    context,
-                    listen: false,
-                  ).bookmarks;
-                  final tags = await dbHelper.getTags();
-                  final success = await ExportService.exportAsJson(
-                    currentBookmarks,
-                    tags,
-                  );
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          success ? 'Export successful!' : 'Export failed',
-                        ),
-                        backgroundColor: success ? Colors.green : Colors.red,
-                      ),
-                    );
-                  }
-                  break;
-                case 'export_html':
-                  final currentBookmarks = Provider.of<BookmarkProvider>(
-                    context,
-                    listen: false,
-                  ).bookmarks;
-                  final tags = await dbHelper.getTags();
-                  final success = await ExportService.exportAsHtml(
-                    currentBookmarks,
-                    tags,
-                  );
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          success ? 'Export successful!' : 'Export failed',
-                        ),
-                        backgroundColor: success ? Colors.green : Colors.red,
-                      ),
-                    );
-                  }
-                  break;
-                case 'import':
-                  final data = await ExportService.importFromJson();
-                  if (data != null && mounted) {
-                    final confirm = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text('Import Data'),
-                        content: Text(
-                          'This will import ${data['bookmarks']?.length ?? 0} bookmarks. '
-                          'Continue?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: const Text('Import'),
-                          ),
-                        ],
-                      ),
-                    );
-
-                    if (confirm == true) {
-                      try {
-                        final importedBookmarks = (data['bookmarks'] as List)
-                            .map((e) => Bookmark.fromMap(e))
-                            .toList();
-                        await dbHelper.saveBookmarks(importedBookmarks);
-                        Provider.of<BookmarkProvider>(
-                          context,
-                          listen: false,
-                        ).loadBookmarks(); // Reload via provider
-
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Import successful!'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Import failed: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      }
-                    }
-                  }
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'settings',
-                child: ListTile(
-                  leading: Icon(Icons.settings),
-                  title: Text('Settings'),
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'export_json',
-                child: ListTile(
-                  leading: Icon(Icons.download),
-                  title: Text('Export JSON'),
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'export_html',
-                child: ListTile(
-                  leading: Icon(Icons.web),
-                  title: Text('Export HTML'),
-                ),
-              ),
-              const PopupMenuItem(
-                value: 'import',
-                child: ListTile(
-                  leading: Icon(Icons.upload),
-                  title: Text('Import Data'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: bookmarks.isEmpty
-          ? const Center(
-              child: Text(
-                'No bookmarks yet.\nTap the + button to add one!',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18.0, color: Colors.grey),
-              ),
-            )
-          : BookmarkListView(bookmarks: bookmarks), // Use BookmarkListView here
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addBookmark,
-        tooltip: 'Add Bookmark',
-        child: const Icon(Icons.add),
-      ),
+    return Consumer<ThemeProvider>(
+      builder: (context, themeProvider, child) {
+        return MaterialApp(
+          title: 'MangaMarks Local',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme(context, themeProvider),
+          darkTheme: AppTheme.darkTheme(context, themeProvider),
+          themeMode: themeProvider.themeMode,
+          home: _showWalkthrough
+              ? WalkthroughScreen(onComplete: _onWalkthroughComplete)
+              : !_isUnlocked
+              ? PinLockScreen(onUnlock: _onUnlock)
+              : const MainScreen(),
+        );
+      },
     );
   }
 }

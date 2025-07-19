@@ -1,60 +1,56 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import 'models.dart';
+import 'package:encrypt/encrypt.dart';
+import 'models/manga.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ExportService {
-  /// Export bookmarks as JSON with enhanced formatting
+  /// Export manga as JSON with enhanced formatting
   static Future<bool> exportAsJson(
-    List<Bookmark> bookmarks,
-    List<Tag> tags,
+    List<Manga> mangaList,
+    Map<String, dynamic> settings,
+    String profileId,
+    String profileName,
   ) async {
     try {
       final exportData = {
         'metadata': {
           'exportDate': DateTime.now().toIso8601String(),
           'version': '1.0',
-          'totalBookmarks': bookmarks.length,
-          'totalTags': tags.length,
+          'profileId': profileId,
+          'profileName': profileName,
+          'totalManga': mangaList.length,
         },
-        'bookmarks': bookmarks.map((b) => b.toMap()).toList(),
-        'tags': tags.map((t) => t.toMap()).toList(),
-        'statistics': _generateStatistics(bookmarks),
+        'manga': mangaList.map((m) => m.toMap()).toList(),
+        'settings': settings,
       };
-
       final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
-
       final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Export Bookmarks as JSON',
+        dialogTitle: 'Export Manga as JSON',
         fileName:
-            'manga_marker_export_${DateTime.now().millisecondsSinceEpoch}.json',
+            'manga_marks_export_${profileName}_${profileId}_${DateTime.now().millisecondsSinceEpoch}.json',
         allowedExtensions: ['json'],
         type: FileType.custom,
       );
-
       if (path != null) {
         await File(path).writeAsString(jsonString);
         return true;
       }
-    } catch (e) {
-      print('JSON Export error: $e');
-    }
+    } catch (e) {}
     return false;
   }
 
-  /// Export bookmarks as HTML with enhanced styling
-  static Future<bool> exportAsHtml(
-    List<Bookmark> bookmarks,
-    List<Tag> tags,
-  ) async {
+  /// Export manga as HTML with enhanced styling
+  static Future<bool> exportAsHtml(List<Manga> mangaList) async {
     try {
-      final statistics = _generateStatistics(bookmarks);
-      final htmlContent = _generateHtmlContent(bookmarks, tags, statistics);
+      final statistics = _generateStatistics(mangaList);
+      final htmlContent = _generateHtmlContent(mangaList, statistics);
 
       final path = await FilePicker.platform.saveFile(
-        dialogTitle: 'Export Bookmarks as HTML',
+        dialogTitle: 'Export Manga as HTML',
         fileName:
-            'manga_marker_export_${DateTime.now().millisecondsSinceEpoch}.html',
+            'manga_marks_export_${DateTime.now().millisecondsSinceEpoch}.html',
         allowedExtensions: ['html'],
         type: FileType.custom,
       );
@@ -64,77 +60,154 @@ class ExportService {
         return true;
       }
     } catch (e) {
-      print('HTML Export error: $e');
+      // print('HTML Export error: $e');
     }
     return false;
   }
 
-  /// Import bookmarks from JSON file
-  static Future<Map<String, dynamic>?> importFromJson() async {
+  /// Export manga as encrypted JSON
+  static Future<bool> exportAsEncryptedJson(
+    List<Manga> mangaList,
+    Map<String, dynamic> settings,
+    String profileId,
+    String profileName,
+    String password,
+  ) async {
+    try {
+      final exportData = {
+        'metadata': {
+          'exportDate': DateTime.now().toIso8601String(),
+          'version': '1.0',
+          'profileId': profileId,
+          'profileName': profileName,
+          'totalManga': mangaList.length,
+          'encrypted': true,
+        },
+        'manga': mangaList.map((m) => m.toMap()).toList(),
+        'settings': settings,
+      };
+      final jsonString = const JsonEncoder.withIndent('  ').convert(exportData);
+      final key = Key.fromUtf8(password.padRight(32, '0').substring(0, 32));
+      final iv = IV.fromLength(16);
+      final encrypter = Encrypter(AES(key));
+      final encrypted = encrypter.encrypt(jsonString, iv: iv);
+      final encryptedData = {
+        'iv': base64.encode(iv.bytes),
+        'data': encrypted.base64,
+      };
+      final path = await FilePicker.platform.saveFile(
+        dialogTitle: 'Export Encrypted Manga Data',
+        fileName:
+            'manga_marks_encrypted_${profileName}_${profileId}_${DateTime.now().millisecondsSinceEpoch}.json',
+        allowedExtensions: ['json'],
+        type: FileType.custom,
+      );
+      if (path != null) {
+        await File(path).writeAsString(json.encode(encryptedData));
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  /// Import manga from JSON file
+  static Future<Map<String, dynamic>?> importFromJson(String profileId) async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
       );
-
       if (result != null && result.files.single.path != null) {
         final file = File(result.files.single.path!);
         final jsonString = await file.readAsString();
         final data = json.decode(jsonString);
-
-        // Validate the structure
-        if (data is Map<String, dynamic> && data.containsKey('bookmarks')) {
-          return data;
+        if (data is Map<String, dynamic> && data.containsKey('manga')) {
+          // Only import if profileId matches or is empty
+          if (data['metadata']?['profileId'] == null ||
+              data['metadata']['profileId'] == profileId) {
+            return data;
+          }
         }
       }
-    } catch (e) {
-      print('Import error: $e');
-    }
+    } catch (e) {}
     return null;
   }
 
-  /// Generate statistics from bookmarks
-  static Map<String, dynamic> _generateStatistics(List<Bookmark> bookmarks) {
+  /// Import manga from encrypted JSON file
+  static Future<Map<String, dynamic>?> importFromEncryptedJson(
+    String profileId,
+    String password,
+  ) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (result != null && result.files.single.path != null) {
+        final file = File(result.files.single.path!);
+        final encryptedJsonString = await file.readAsString();
+        final encryptedData = json.decode(encryptedJsonString);
+        if (encryptedData is Map<String, dynamic> &&
+            encryptedData.containsKey('iv') &&
+            encryptedData.containsKey('data')) {
+          final key = Key.fromUtf8(password.padRight(32, '0').substring(0, 32));
+          final iv = IV.fromBase64(encryptedData['iv']);
+          final encrypter = Encrypter(AES(key));
+          final decrypted = encrypter.decrypt64(encryptedData['data'], iv: iv);
+          final data = json.decode(decrypted);
+          if (data is Map<String, dynamic> && data.containsKey('manga')) {
+            if (data['metadata']?['profileId'] == null ||
+                data['metadata']['profileId'] == profileId) {
+              return data;
+            }
+          }
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  /// Generate statistics from manga
+  static Map<String, dynamic> _generateStatistics(List<Manga> mangaList) {
     final stats = <String, dynamic>{};
 
-    stats['totalBookmarks'] = bookmarks.length;
-    stats['totalChaptersRead'] = bookmarks.fold(
+    stats['totalManga'] = mangaList.length;
+    stats['totalChaptersRead'] = mangaList.fold(
       0,
-      (sum, b) => sum + b.currentChapter,
+      (sum, m) => sum + m.currentChapter,
     );
 
     // Status distribution
     final statusCounts = <String, int>{};
-    for (var bookmark in bookmarks) {
-      statusCounts[bookmark.status] = (statusCounts[bookmark.status] ?? 0) + 1;
+    for (var manga in mangaList) {
+      statusCounts[manga.status] = (statusCounts[manga.status] ?? 0) + 1;
     }
     stats['statusDistribution'] = statusCounts;
 
     // Rating distribution
     final ratingCounts = <int, int>{};
-    for (var bookmark in bookmarks) {
-      if (bookmark.rating > 0) {
-        ratingCounts[bookmark.rating] =
-            (ratingCounts[bookmark.rating] ?? 0) + 1;
+    for (var manga in mangaList) {
+      if (manga.rating > 0) {
+        ratingCounts[manga.rating] = (ratingCounts[manga.rating] ?? 0) + 1;
       }
     }
     stats['ratingDistribution'] = ratingCounts;
 
     // Tag usage
     final tagCounts = <String, int>{};
-    for (var bookmark in bookmarks) {
-      for (var tag in bookmark.tags) {
+    for (var manga in mangaList) {
+      for (var tag in manga.tags) {
         tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
       }
     }
     stats['tagUsage'] = tagCounts;
 
     // Average rating
-    final ratedBookmarks = bookmarks.where((b) => b.rating > 0).toList();
-    if (ratedBookmarks.isNotEmpty) {
+    final ratedManga = mangaList.where((m) => m.rating > 0).toList();
+    if (ratedManga.isNotEmpty) {
       stats['averageRating'] =
-          ratedBookmarks.map((b) => b.rating).reduce((a, b) => a + b) /
-          ratedBookmarks.length;
+          ratedManga.map((m) => m.rating).reduce((a, b) => a + b) /
+          ratedManga.length;
     }
 
     return stats;
@@ -142,8 +215,7 @@ class ExportService {
 
   /// Generate HTML content with enhanced styling
   static String _generateHtmlContent(
-    List<Bookmark> bookmarks,
-    List<Tag> tags,
+    List<Manga> mangaList,
     Map<String, dynamic> statistics,
   ) {
     final exportDate = DateTime.now();
@@ -154,7 +226,7 @@ class ExportService {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manga Marker Export</title>
+    <title>MangaMarks Export</title>
     <style>
         * {
             margin: 0;
@@ -224,7 +296,7 @@ class ExportService {
             margin-top: 5px;
         }
         
-        .bookmarks-section {
+        .manga-section {
             padding: 30px;
         }
         
@@ -236,12 +308,12 @@ class ExportService {
             padding-bottom: 10px;
         }
         
-        .bookmark-grid {
+        .manga-grid {
             display: grid;
             gap: 20px;
         }
         
-        .bookmark-card {
+        .manga-card {
             background: white;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
@@ -249,19 +321,19 @@ class ExportService {
             transition: transform 0.2s, box-shadow 0.2s;
         }
         
-        .bookmark-card:hover {
+        .manga-card:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         
-        .bookmark-title {
+        .manga-title {
             font-size: 1.3em;
             font-weight: bold;
             color: #333;
             margin-bottom: 10px;
         }
         
-        .bookmark-url {
+        .manga-url {
             color: #667eea;
             text-decoration: none;
             word-break: break-all;
@@ -269,7 +341,7 @@ class ExportService {
             display: block;
         }
         
-        .bookmark-details {
+        .manga-details {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 10px;
@@ -341,7 +413,7 @@ class ExportService {
                 grid-template-columns: repeat(2, 1fr);
             }
             
-            .bookmark-details {
+            .manga-details {
                 grid-template-columns: 1fr;
             }
         }
@@ -350,14 +422,14 @@ class ExportService {
 <body>
     <div class="container">
         <div class="header">
-            <h1>📚 Manga Marker Export</h1>
+            <h1>📚 MangaMarks Export</h1>
             <p>Exported on ${exportDate.day}/${exportDate.month}/${exportDate.year} at ${exportDate.hour}:${exportDate.minute.toString().padLeft(2, '0')}</p>
         </div>
         
         <div class="stats-grid">
             <div class="stat-card">
-                <span class="stat-number">${statistics['totalBookmarks']}</span>
-                <div class="stat-label">Total Bookmarks</div>
+                <span class="stat-number">${statistics['totalManga']}</span>
+                <div class="stat-label">Total Manga</div>
             </div>
             <div class="stat-card">
                 <span class="stat-number">${statistics['totalChaptersRead']}</span>
@@ -368,47 +440,47 @@ class ExportService {
                 <div class="stat-label">Average Rating</div>
             </div>
             <div class="stat-card">
-                <span class="stat-number">${tags.length}</span>
+                <span class="stat-number">${mangaList.map((m) => m.tags).expand((tags) => tags).toSet().length}</span>
                 <div class="stat-label">Total Tags</div>
             </div>
         </div>
         
-        <div class="bookmarks-section">
-            <h2 class="section-title">📖 Your Bookmarks</h2>
-            <div class="bookmark-grid">
-                ${bookmarks.map((bookmark) => '''
-                <div class="bookmark-card">
-                    <div class="bookmark-title">${bookmark.title}</div>
-                    <a href="${bookmark.url}" class="bookmark-url" target="_blank">${bookmark.url}</a>
+        <div class="manga-section">
+            <h2 class="section-title">📖 Your Manga</h2>
+            <div class="manga-grid">
+                ${mangaList.map((manga) => '''
+                <div class="manga-card">
+                    <div class="manga-title">${manga.title}</div>
+                    <a href="${manga.url}" class="manga-url" target="_blank">${manga.url}</a>
                     
-                    <div class="bookmark-details">
+                    <div class="manga-details">
                         <div class="detail-item">
                             <span class="detail-label">Status:</span>
-                            <span class="status ${bookmark.status.toLowerCase().replaceAll(' ', '-')}">${bookmark.status}</span>
+                            <span class="status ${manga.status.toLowerCase().replaceAll(' ', '-')}">${manga.status}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Progress:</span>
-                            ${bookmark.currentChapter}/${bookmark.totalChapters > 0 ? bookmark.totalChapters : '?'} chapters
+                            ${manga.currentChapter}/${manga.totalChapters > 0 ? manga.totalChapters : '?'} chapters
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Rating:</span>
-                            <span class="rating">${'★' * bookmark.rating}${'☆' * (5 - bookmark.rating)}</span>
+                            <span class="rating">${'★' * manga.rating}${'☆' * (5 - manga.rating)}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-label">Last Updated:</span>
-                            ${bookmark.lastUpdated.day}/${bookmark.lastUpdated.month}/${bookmark.lastUpdated.year}
+                            ${manga.lastUpdated.day}/${manga.lastUpdated.month}/${manga.lastUpdated.year}
                         </div>
                     </div>
                     
-                    ${bookmark.tags.isNotEmpty ? '''
+                    ${manga.tags.isNotEmpty ? '''
                     <div class="tags">
-                        ${bookmark.tags.map((tag) => '<span class="tag">$tag</span>').join('')}
+                        ${manga.tags.map((tag) => '<span class="tag">$tag</span>').join('')}
                     </div>
                     ''' : ''}
                     
-                    ${bookmark.notes.isNotEmpty ? '''
+                    ${manga.notes.isNotEmpty ? '''
                     <div class="notes">
-                        <strong>Notes:</strong> ${bookmark.notes}
+                        <strong>Notes:</strong> ${manga.notes}
                     </div>
                     ''' : ''}
                 </div>
@@ -417,11 +489,49 @@ class ExportService {
         </div>
         
         <div class="footer">
-            Generated by Manga Marker • ${bookmarks.length} bookmarks exported
+            Generated by MangaMarks • ${mangaList.length} manga exported
         </div>
     </div>
 </body>
 </html>
     ''';
+  }
+
+  static Future<List<Map<String, dynamic>>> _getProfiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final profilesJson = prefs.getString('profiles');
+    if (profilesJson != null) {
+      final List<dynamic> list = json.decode(profilesJson);
+      return List<Map<String, dynamic>>.from(list);
+    }
+    return [];
+  }
+
+  static Future<Map<String, dynamic>> _getSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final settingsJson = prefs.getString('app_settings');
+    if (settingsJson != null) {
+      return json.decode(settingsJson);
+    }
+    return {};
+  }
+
+  static Future<void> _restoreProfiles(dynamic profiles) async {
+    if (profiles is List) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('profiles', json.encode(profiles));
+      if (profiles.isNotEmpty &&
+          profiles[0] is Map &&
+          profiles[0]['id'] != null) {
+        await prefs.setString('active_profile_id', profiles[0]['id']);
+      }
+    }
+  }
+
+  static Future<void> _restoreSettings(dynamic settings) async {
+    if (settings is Map) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('app_settings', json.encode(settings));
+    }
   }
 }
