@@ -3,6 +3,7 @@ import '../models/manga.dart';
 import '../theme/app_theme.dart';
 import '../utils/constants.dart';
 import 'manga_edit_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MangaDetailScreen extends StatelessWidget {
   final Manga manga;
@@ -16,6 +17,35 @@ class MangaDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(manga.title),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.chrome_reader_mode, color: Colors.blue),
+            tooltip: 'Read',
+            onPressed: () async {
+              final url = manga.sourceUrl?.isNotEmpty == true
+                  ? manga.sourceUrl
+                  : manga.url;
+              if (url != null && url.isNotEmpty) {
+                final uri = Uri.parse(url);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Could not open URL'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('No URL available for this manga'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: () async {

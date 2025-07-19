@@ -8,6 +8,7 @@ import 'manga_detail_screen.dart';
 import 'dart:convert'; // Added for base64Decode
 import 'dart:io'; // Added for File
 import 'package:flutter/foundation.dart' show kIsWeb; // Added for kIsWeb
+import 'package:url_launcher/url_launcher.dart'; // Added for url_launcher
 
 class BookmarksScreen extends StatefulWidget {
   const BookmarksScreen({super.key});
@@ -221,6 +222,35 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
               ),
             ),
             const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.chrome_reader_mode, color: Colors.blue),
+              tooltip: 'Read',
+              onPressed: () async {
+                final url = manga.sourceUrl?.isNotEmpty == true
+                    ? manga.sourceUrl
+                    : manga.url;
+                if (url != null && url.isNotEmpty) {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Could not open URL'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('No URL available for this manga'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
             const Icon(Icons.bookmark, color: Colors.amber, size: 20),
           ],
         ),
